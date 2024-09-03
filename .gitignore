@@ -1,4 +1,4 @@
-# IntelliJ IDEA and CLion project files
+# Ignore IntelliJ IDEA and CLion project files
 .idea/
 *.iml
 
