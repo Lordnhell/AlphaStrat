@@ -3,4 +3,4 @@ project(AlphaStrat)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(AlphaStrat main.cpp)
+add_executable(AlphaStrat src/main.cpp)

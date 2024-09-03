@@ -1,8 +1,45 @@
+# IntelliJ IDEA and CLion project files
+.idea/
+*.iml
+
 # Default ignored files
 /shelf/
 /workspace.xml
+
 # Editor-based HTTP Client requests
 /httpRequests/
+
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
+
+# Ignore configuration files containing API keys
+config/config.json
+
+# Ignore build directories
+build/
+cmake-build-debug/
+
+# Ignore debug files
+*.debug
+*.log
+*.out
+
+# Ignore temporary files
+*.tmp
+*.swp
+*.bak
+*.pyc
+*.pyo
+
+# Ignore compiled object files and executables
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Ignore CMake cache files
+CMakeCache.txt
+CMakeFiles/
