@@ -2,7 +2,17 @@
 // Created by Admin on 3/9/2024.
 //
 
-#ifndef ORDERGATEWAY_H
-#define ORDERGATEWAY_H
+#ifndef ORDER_GATEWAY_H
+#define ORDER_GATEWAY_H
 
-#endif //ORDERGATEWAY_H
+#include <string>
+
+class OrderGateway {
+public:
+    OrderGateway();
+    void sendOrderToExchange(const std::string& order);
+    void receiveExecutionReport(const std::string& report);
+    void implementCircuitBreaker();
+};
+
+#endif // ORDER_GATEWAY_H
