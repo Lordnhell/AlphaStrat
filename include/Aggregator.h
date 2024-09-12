@@ -5,4 +5,18 @@
 #ifndef AGGREGATOR_H
 #define AGGREGATOR_H
 
-#endif //AGGREGATOR_H
+#include <vector>
+#include <string>
+
+class Aggregator {
+public:
+    Aggregator();
+    void addOrderBookData(const std::string& data);
+    std::string getAggregatedData();
+
+private:
+    std::vector<std::string> orderBooks;
+};
+
+#endif // AGGREGATOR_H
+
