@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.29)
 project(AlphaStrat)
 
 set(CMAKE_CXX_STANDARD 20)
+message(STATUS "Project Name: ${PROJECT_NAME}")
+message(STATUS "Toolchain File: ${CMAKE_TOOLCHAIN_FILE}")
+
+find_package(cpr CONFIG REQUIRED)
+
 
 add_executable(AlphaStrat src/main.cpp
         src/MarketDataGateway.cpp
@@ -19,3 +24,5 @@ add_executable(AlphaStrat src/main.cpp
         tests/test_TradingEngine.cpp
         tests/test_OrderManagementSystem.cpp
         tests/test_OrderGateway.cpp)
+
+target_link_libraries(AlphaStrat PRIVATE cpr::cpr)
