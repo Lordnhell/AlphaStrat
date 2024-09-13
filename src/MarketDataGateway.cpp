@@ -4,7 +4,7 @@
 #include "../include/MarketDataGateway.h"
 #include <fstream>
 #include <iostream>
-#include <nlohmann/json.hpp>
+#include "../include/json.hpp"
 #include <cpr/cpr.h>
 
 // Constructor
