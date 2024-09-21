@@ -1,11 +1,19 @@
 //
 // Created by Admin on 3/9/2024.
 //
-#include "../include/MarketDataGateway.h"
+#define NOMINMAX
+
+// Standard and external library includes
 #include <fstream>
 #include <iostream>
+#include <curl/curl.h>
 #include "../include/json.hpp"
-#include <cpr/cpr.h>
+
+// Your project's includes
+#include "../include/MarketDataGateway.h"
+
+// Windows headers (keep them last)
+#include <windows.h>
 
 // Constructor
 MarketDataGateway::MarketDataGateway() {}
@@ -21,22 +29,61 @@ void MarketDataGateway::loadConfig(const std::string& configFile) {
     if (file.is_open()) {
         nlohmann::json config;
         file >> config;
-        apiKey = config["alpaca_api_key"];
-        secretKey = config["alpaca_secret_key"];
-        baseUrl = config["alpaca_base_url"];
+        apiKey = config["api_key"];
+        cout << "API Key: " << apiKey << endl;
+        secretKey = config["api_secret"];
+        cout << "API Secret: " << secretKey << endl;
+        baseUrl = config["base_url"];
+        cout << "Base URL: " << baseUrl << endl;
+        dataUrl = config["data_url"];
+        cout << "Data URL: " << dataUrl << endl;
     } else {
         std::cerr << "Unable to open config file" << std::endl;
     }
 }
 
+// Callback function to capture CURL response data
+static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
+
 // Get market data for a given symbol
-std::string MarketDataGateway::getMarketData(const std::string& symbol) {
-    auto response = cpr::Get(cpr::Url{baseUrl + "/v2/stocks/" + symbol + "/quote"},
-                             cpr::Header{{"APCA-API-KEY-ID", apiKey},
-                                         {"APCA-API-SECRET-KEY", secretKey}});
-    if (response.status_code == 200) {
-        return response.text;
-    } else {
-        return "Error fetching market data";
+std::string MarketDataGateway::getMarketData(const std::string& symbol,const string& feed) {
+    CURL *hnd = curl_easy_init();
+    if (!hnd) {
+        return "CURL initialization failed";
     }
+
+    std::string readBuffer;
+    std::string url = dataUrl + "v2/stocks/quotes/latest?symbols=" + symbol + "&feed=" + feed;
+    cout << url << endl;
+
+    curl_easy_setopt(hnd, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, WriteCallback);  // Set callback function
+    curl_easy_setopt(hnd, CURLOPT_WRITEDATA, &readBuffer);  // Pass the string to store data
+
+    // Prepare headers
+    struct curl_slist *headers = NULL;
+    headers = curl_slist_append(headers, "accept: application/json");
+    std::string apiKeyHeader = "APCA-API-KEY-ID: " + apiKey;
+    headers = curl_slist_append(headers, apiKeyHeader.c_str());
+    std::string apiSecretHeader = "APCA-API-SECRET-KEY: " + secretKey;
+    headers = curl_slist_append(headers, apiSecretHeader.c_str());
+
+    curl_easy_setopt(hnd, CURLOPT_HTTPHEADER, headers);
+
+    // Perform the request
+    CURLcode res = curl_easy_perform(hnd);
+
+    // Check for errors
+    if (res != CURLE_OK) {
+        std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+    }
+
+    // Clean up
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(hnd);
+
+    return readBuffer;  // Return the result
 }
