@@ -7,16 +7,19 @@
 
 #include <string>
 
+using namespace std;
+
 class MarketDataGateway {
 public:
     MarketDataGateway();
     void initialize(const std::string& configFile);
-    std::string getMarketData(const std::string& symbol);
+    std::string getMarketData(const std::string& symbol, const string& feed);
 
 private:
-    std::string apiKey;
-    std::string secretKey;
-    std::string baseUrl;
+    string apiKey;
+    string secretKey;
+    string baseUrl;
+    string dataUrl;
 
     void loadConfig(const std::string& configFile);
 };

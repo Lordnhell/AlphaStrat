@@ -1,41 +1,23 @@
 #include <iostream>
+#include <fstream>
 
-#include "../include/Aggregator.h"
+//#include "../include/Aggregator.h"
+//#include "../include/MarketDataGateway.h"
+//#include "../include/OrderGateway.h"
+//#include "../include/OrderManagementSystem.h"
+//#include "../include/TradingEngine.h"
+#include "../include/json.hpp"
 #include "../include/MarketDataGateway.h"
-#include "../include/OrderGateway.h"
-#include "../include/OrderManagementSystem.h"
-#include "../include/TradingEngine.h"
+
+using namespace std;
 
 int main() {
     // Initialize components
-    MarketDataGateway marketDataGateway;
-    Aggregator aggregator;
-    TradingEngine tradingEngine;
-    OrderManagementSystem orderManagementSystem;
-    OrderGateway orderGateway;
+    MarketDataGateway dataGateway;
 
-    // Initialize with config
-    marketDataGateway.initialize("../config/config.json");
+    dataGateway.initialize("../config/config.json");
 
-    // Fetch market data
-    std::string marketData = marketDataGateway.getMarketData("AAPL");
-    aggregator.addOrderBookData(marketData);
-
-    // Execute trading strategy
-    std::string aggregatedData = aggregator.getAggregatedData();
-    tradingEngine.executeTradingStrategy(aggregatedData);
-
-    // Simulate order and lifecycle management
-    std::string order = "Buy AAPL 10 @ 150.00";
-    tradingEngine.sendOrderRequest(order);
-    orderManagementSystem.manageOrderLifecycle("Order1", "Submitted");
-
-    // Send and receive execution report
-    orderGateway.sendOrderToExchange(order);
-    orderGateway.receiveExecutionReport("Order executed");
-
-    // Implement circuit breaker
-    orderGateway.implementCircuitBreaker();
-
+    string response = dataGateway.getMarketData("tsla","iex");
+    cout << response << endl;
     return 0;
 }
