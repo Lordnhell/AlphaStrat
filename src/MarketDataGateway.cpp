@@ -1,8 +1,6 @@
 //
 // Created by Admin on 3/9/2024.
 //
-#define NOMINMAX
-
 // Standard and external library includes
 #include <fstream>
 #include <iostream>
@@ -12,8 +10,11 @@
 // Your project's includes
 #include "../include/MarketDataGateway.h"
 
-// Windows headers (keep them last)
-#include <windows.h>
+// Windows headers
+#ifdef _WIN32
+    // #define NOMINMAX
+    #include <windows.h>
+#endif
 
 // Constructor
 MarketDataGateway::MarketDataGateway() {}
@@ -30,13 +31,13 @@ void MarketDataGateway::loadConfig(const std::string& configFile) {
         nlohmann::json config;
         file >> config;
         apiKey = config["api_key"];
-        cout << "API Key: " << apiKey << endl;
+        // cout << "API Key: " << apiKey << endl;
         secretKey = config["api_secret"];
-        cout << "API Secret: " << secretKey << endl;
+        // cout << "API Secret: " << secretKey << endl;
         baseUrl = config["base_url"];
-        cout << "Base URL: " << baseUrl << endl;
+        // cout << "Base URL: " << baseUrl << endl;
         dataUrl = config["data_url"];
-        cout << "Data URL: " << dataUrl << endl;
+        // cout << "Data URL: " << dataUrl << endl;
     } else {
         std::cerr << "Unable to open config file" << std::endl;
     }

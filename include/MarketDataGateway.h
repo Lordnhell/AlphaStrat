@@ -8,20 +8,23 @@
 #include <string>
 
 using namespace std;
+// class MarketDataGatewayTest;
 
 class MarketDataGateway {
 public:
     MarketDataGateway();
     void initialize(const std::string& configFile);
-    std::string getMarketData(const std::string& symbol, const string& feed);
+    string getMarketData(const std::string& symbol, const string& feed);
+    std::string baseUrl;
 
 private:
-    string apiKey;
-    string secretKey;
-    string baseUrl;
-    string dataUrl;
+    std::string apiKey;
+    std::string secretKey;
+
+    std::string dataUrl;
 
     void loadConfig(const std::string& configFile);
+    // friend class MarketDataGatewayTest;
 };
 
 #endif // MARKETDATA_GATEWAY_H
