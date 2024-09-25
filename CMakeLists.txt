@@ -5,27 +5,37 @@ set(CMAKE_CXX_STANDARD 20)
 message(STATUS "Project Name: ${PROJECT_NAME}")
 message(STATUS "Toolchain File: ${CMAKE_TOOLCHAIN_FILE}")
 
-#find_package(cpr CONFIG REQUIRED)
+# Include the vcpkg toolchain
+#set(CMAKE_TOOLCHAIN_FILE "[path to vcpkg]/scripts/buildsystems/vcpkg.cmake")
+
+# Find necessary packages
 find_package(CURL CONFIG REQUIRED)
+find_package(GTest CONFIG REQUIRED)
 
+# Gather all source files
+file(GLOB_RECURSE SRC_FILES "src/*.cpp")
+file(GLOB_RECURSE TEST_FILES "tests/*.cpp")
+file(GLOB_RECURSE INCLUDE_FILES "include/*.h")
 
-add_executable(AlphaStrat src/main.cpp
-        src/MarketDataGateway.cpp
-        src/Aggregator.cpp
-        src/TradingEngine.cpp
-        src/OrderManagementSystem.cpp
-        src/OrderGateway.cpp
-        include/MarketDataGateway.h
-        include/Aggregator.h
-        include/TradingEngine.h
-        include/OrderManagementSystem.h
-        include/OrderGateway.h
-        tests/test_MarketDataGateway.cpp
-        tests/test_Aggregator.cpp
-        tests/test_TradingEngine.cpp
-        tests/test_OrderManagementSystem.cpp
-        tests/test_OrderGateway.cpp
-        src/main.cpp)
+# Main executable
+add_executable(AlphaStrat ${SRC_FILES} ${INCLUDE_FILES})
 
+# Link necessary libraries to the main executable
 target_link_libraries(AlphaStrat PRIVATE CURL::libcurl)
-#target_link_libraries(AlphaStrat PRIVATE cpr::cpr)
+
+# Test executable (make sure to include all source files)
+add_executable(AlphaStratTests ${TEST_FILES} ${SRC_FILES} ${INCLUDE_FILES})
+target_link_libraries(AlphaStratTests PRIVATE GTest::gtest_main CURL::libcurl)
+enable_testing()
+
+# Add a custom command to run tests before building the main program
+add_custom_target(run_tests
+        COMMAND ${CMAKE_CTEST_COMMAND}
+        DEPENDS AlphaStratTests
+)
+
+# Make the main executable dependent on running tests
+add_dependencies(AlphaStrat run_tests)
+
+# Add a custom test for CTest
+add_test(NAME RunAllTests COMMAND AlphaStratTests)
