@@ -6,10 +6,8 @@
 #include <iostream>
 #include <curl/curl.h>
 #include "../include/json.hpp"
-
 // Your project's includes
 #include "../include/MarketDataGateway.h"
-
 // Windows headers
 #ifdef _WIN32
     // #define NOMINMAX
