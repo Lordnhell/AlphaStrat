@@ -18,13 +18,18 @@ file(GLOB_RECURSE TEST_FILES "tests/*.cpp")
 file(GLOB_RECURSE INCLUDE_FILES "include/*.h")
 
 # Main executable
-add_executable(AlphaStrat ${SRC_FILES} ${INCLUDE_FILES})
+add_executable(AlphaStrat ${SRC_FILES} ${INCLUDE_FILES}
+        include/initialize.h
+        include/MarketDataParser.h
+        src/MarketDataParser.cpp)
 
 # Link necessary libraries to the main executable
 target_link_libraries(AlphaStrat PRIVATE CURL::libcurl)
 
 # Test executable (make sure to include all source files)
-add_executable(AlphaStratTests ${TEST_FILES} ${SRC_FILES} ${INCLUDE_FILES})
+add_executable(AlphaStratTests ${TEST_FILES} ${SRC_FILES} ${INCLUDE_FILES}
+        include/MarketDataParser.h
+        src/MarketDataParser.cpp)
 target_link_libraries(AlphaStratTests PRIVATE GTest::gtest_main CURL::libcurl)
 enable_testing()
 

@@ -15,12 +15,12 @@ public:
     MarketDataGateway();
     void initialize(const std::string& configFile);
     string getMarketData(const std::string& symbol, const string& feed);
-    std::string baseUrl;
+
 
 private:
     std::string apiKey;
     std::string secretKey;
-
+    std::string baseUrl;
     std::string dataUrl;
 
     void loadConfig(const std::string& configFile);
