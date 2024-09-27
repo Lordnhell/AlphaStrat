@@ -86,3 +86,47 @@ std::string MarketDataGateway::getMarketData(const std::string& symbol,const str
 
     return readBuffer;  // Return the result
 }
+
+std::string MarketDataGateway::getLatestQuotes(const std::string& symbol, const string& feed) {
+    CURL* hnd = curl_easy_init();
+    if (!hnd) {
+        return "CURL initialization failed";
+    }
+
+    std::string readBuffer;
+    std::string url = dataUrl + "v2/stocks/quotes/latest?symbols=" + symbol;
+    if (!feed.empty()) {
+        url += "&feed=" + feed;
+    }
+    std::cout << "Fetching latest quotes for " << symbol << " from: " << url << std::endl;
+
+    curl_easy_setopt(hnd, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(hnd, CURLOPT_WRITEDATA, &readBuffer);
+
+    // Prepare headers
+    struct curl_slist* headers = NULL;
+    headers = curl_slist_append(headers, "accept: application/json");
+    std::string apiKeyHeader = "APCA-API-KEY-ID: " + apiKey;
+    headers = curl_slist_append(headers, apiKeyHeader.c_str());
+    std::string apiSecretHeader = "APCA-API-SECRET-KEY: " + secretKey;
+    headers = curl_slist_append(headers, apiSecretHeader.c_str());
+
+    curl_easy_setopt(hnd, CURLOPT_HTTPHEADER, headers);
+
+    // Perform the request
+    CURLcode res = curl_easy_perform(hnd);
+
+    // Check for errors
+    if (res != CURLE_OK) {
+        std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+    }
+
+    // Clean up
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(hnd);
+
+    MarketDataParser::parseQuoteData(readBuffer);  // Parse and print the response
+
+    return readBuffer;  // Return the raw response
+}

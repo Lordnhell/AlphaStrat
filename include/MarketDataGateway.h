@@ -6,6 +6,7 @@
 #define MARKETDATA_GATEWAY_H
 
 #include <string>
+#include "MarketDataParser.h"
 
 using namespace std;
 // class MarketDataGatewayTest;
@@ -15,6 +16,7 @@ public:
     MarketDataGateway();
     void initialize(const std::string& configFile);
     string getMarketData(const std::string& symbol, const string& feed);
+    string getLatestQuotes(const std::string& symbol,const string& feed);
 
 
 private:

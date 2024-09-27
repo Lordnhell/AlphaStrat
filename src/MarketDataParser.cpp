@@ -17,9 +17,9 @@ void MarketDataParser::printBar(const nlohmann::json& bar) {
 
 // Helper function to print quotes
 void MarketDataParser::printQuote(const nlohmann::json& quote) {
-    if (quote.contains("bid_price") && quote.contains("ask_price") && quote.contains("bid_size") && quote.contains("ask_size")) {
-        std::cout << "Bid Price: " << quote["bid_price"] << ", Bid Size: " << quote["bid_size"]
-                  << ", Ask Price: " << quote["ask_price"] << ", Ask Size: " << quote["ask_size"] << std::endl;
+    if (quote.contains("bp") && quote.contains("ap") && quote.contains("bs") && quote.contains("as")) {
+        std::cout << "Bid Price: " << quote["bp"] << ", Bid Size: " << quote["bs"]
+                  << ", Ask Price: " << quote["ap"] << ", Ask Size: " << quote["as"] << std::endl;
     } else {
         std::cerr << "Invalid Quote Data!" << std::endl;
     }

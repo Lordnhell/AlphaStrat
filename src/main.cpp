@@ -17,7 +17,10 @@ int main() {
 
     dataGateway.initialize("../config/config.json");
 
-    string response = dataGateway.getMarketData("tsla","iex");
-    cout << response << endl;
+    // string response1 = dataGateway.getMarketData("tsla","iex");
+    string response2 = dataGateway.getLatestQuotes("tsla","iex");
+    // cout << response1 << endl;
+    cout << "" << endl;
+    cout << response2 << endl;
     return 0;
 }

@@ -43,4 +43,4 @@ add_custom_target(run_tests
 add_dependencies(AlphaStrat run_tests)
 
 # Add a custom test for CTest
-add_test(NAME RunAllTests COMMAND AlphaStratTests)
+#add_test(NAME RunAllTests COMMAND AlphaStratTests)
