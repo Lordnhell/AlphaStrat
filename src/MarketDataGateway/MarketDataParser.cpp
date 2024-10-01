@@ -1,8 +1,11 @@
 //
 // Created by Admin on 26/9/2024.
 //
-#include "../include/MarketDataParser.h"
+#include "../../include/MarketDataGateway/MarketDataParser.h"
 #include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <ctime>
 
 // Helper function to print bars
 void MarketDataParser::printBar(const nlohmann::json& bar) {
@@ -16,12 +19,20 @@ void MarketDataParser::printBar(const nlohmann::json& bar) {
 }
 
 // Helper function to print quotes
-void MarketDataParser::printQuote(const nlohmann::json& quote) {
-    if (quote.contains("bp") && quote.contains("ap") && quote.contains("bs") && quote.contains("as")) {
-        std::cout << "Bid Price: " << quote["bp"] << ", Bid Size: " << quote["bs"]
-                  << ", Ask Price: " << quote["ap"] << ", Ask Size: " << quote["as"] << std::endl;
+std::string MarketDataParser::printQuote(const nlohmann::json& quote) {
+    if (quote.contains("bp")
+        && quote.contains("ap")
+        && quote.contains("bs")
+        && quote.contains("as")
+        && quote.contains("t")) {
+
+        std::ostringstream oss;
+        oss << "Bid Price: " << quote["bp"] << ", Bid Size: " << quote["bs"]
+            << ", Ask Price: " << quote["ap"] << ", Ask Size: " << quote["as"] <<", Date and Time: "<< convertISO8601(quote["t"]);
+        return oss.str();
     } else {
         std::cerr << "Invalid Quote Data!" << std::endl;
+        return "";
     }
 }
 
@@ -67,21 +78,32 @@ void MarketDataParser::parseBarData(const std::string& jsonResponse) {
 }
 
 // Parse Quote Data (Bid/Ask)
-void MarketDataParser::parseQuoteData(const std::string& jsonResponse) {
+std::string MarketDataParser::parseQuoteData(const std::string& jsonResponse) {
     try {
+        std::cout << jsonResponse << std::endl;
         nlohmann::json data = nlohmann::json::parse(jsonResponse);
+
+        // To collect all output in case there are multiple quotes
+        std::string result;
+
         if (data.contains("quote")) {
-            printQuote(data["quote"]);
+            // If there's a single quote
+            result = printQuote(data["quote"]);
         } else if (data.contains("quotes")) {
+            // If there are multiple quotes, iterate through each
             for (const auto& [symbol, quote] : data["quotes"].items()) {
-                std::cout << "Symbol: " << symbol << std::endl;
-                printQuote(quote);
+                result += "Symbol: " + symbol + "\n";
+                result += printQuote(quote) + "\n";
             }
         } else {
             std::cerr << "No quote data found!" << std::endl;
+            return "";
         }
+
+        return result;
     } catch (const nlohmann::json::exception& e) {
         std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+        return "";
     }
 }
 
@@ -122,3 +144,26 @@ void MarketDataParser::parseSnapshotData(const std::string& jsonResponse) {
         std::cerr << "Error parsing JSON: " << e.what() << std::endl;
     }
 }
+
+std::string MarketDataParser::convertISO8601(const std::string &date) {
+    // Extract the date and time part from the ISO 8601 string
+    std::tm tm = {};
+    std::istringstream ss(date.substr(0, 19)); // Take only the first part, excluding fractional seconds and 'Z'
+
+    // Parse the string to fill the tm structure
+    ss >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%S");
+
+    if (ss.fail()) {
+        return "Failed to parse time";
+    }
+
+    // Convert to time_t (time since epoch)
+    std::time_t time = std::mktime(&tm);
+
+    // Format the time to a readable string
+    std::ostringstream result;
+    result << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+
+    return result.str();
+}
+

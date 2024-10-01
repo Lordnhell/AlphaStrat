@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "../include/MarketDataGateway.h"
+#include "../include/MarketDataGateway/MarketDataGateway.h"
 #include <fstream>
 #include "../include/json.hpp"
 #include <string>
