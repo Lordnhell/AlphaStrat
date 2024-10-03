@@ -59,9 +59,3 @@ The architecture follows a modular design with several layers:
 - **libcurl**
 - **nlohmann::json**
 - **GTest**
-
-## Example Build
-
-```bash
-cmake -B build .
-cmake --build build
