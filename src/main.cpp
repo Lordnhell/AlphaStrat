@@ -29,5 +29,18 @@ int main() {
 
     cout << "" << endl;
     cout << response2 << endl;
+
+    // // Create an instance of the AlpacaAdapter
+    // AlpacaAdapter adapter;
+    //
+    // // Initialize with a configuration file (make sure to replace with the actual path)
+    // adapter.initialize("config.json");
+    //
+    // // Tickers to subscribe for live data (e.g., Apple and Google)
+    // std::vector<std::string> tickers = {"AAPL", "GOOG"};
+    //
+    // // Subscribe to live data for the tickers
+    // adapter.subscribeLiveData(tickers);
+
     return 0;
 }
