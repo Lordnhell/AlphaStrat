@@ -8,11 +8,11 @@
 
 #include "../interface/GenericAdapter.h"
 #include <nlohmann/json.hpp>
-#include <websocketpp/config/asio_no_tls_client.hpp>
+#include <websocketpp/config/asio_client.hpp>  // for TLS connection
 #include <websocketpp/client.hpp>
 
 
-typedef websocketpp::client<websocketpp::config::asio_client> websocket_client;
+typedef websocketpp::client<websocketpp::config::asio_tls_client> websocket_client;
 typedef websocketpp::connection_hdl connection_hdl;
 
 class AlpacaAdapter : public GenericAdapter {
@@ -22,7 +22,7 @@ public:
     //Single json request
     std::string getLatestTick(const std::string &symbol, const std::string &feed) override;
     // Websocket live data
-    void subscribeLiveData(const std::vector<std::string>& tickers) override;
+    void subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) override;
 
 private:
     // Config parameters
@@ -31,6 +31,8 @@ private:
     std::string secretKey;
     std::string baseUrl;
     std::string dataUrl;
+
+    bool isAuthenticated = false;
 
     //Single json request
     std::string performRequest(const std::string& url);
