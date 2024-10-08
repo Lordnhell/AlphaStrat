@@ -49,6 +49,7 @@ add_executable(AlphaStrat ${SRC_FILES} ${INCLUDE_FILES}
         include/interface/GenericAdapter.h
         include/Adapters/AlpacaAdapter.h
         src/Adapters/AlpacaAdapter.cpp
+        include/solace/solaceLib.h
 )
 
 # Link necessary libraries to the main executable
