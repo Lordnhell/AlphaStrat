@@ -19,8 +19,10 @@ class AlpacaAdapter : public GenericAdapter {
 public:
     // Config parameters
     void initialize(const std::string& configFile) override;
+
     //Single json request
     std::string getLatestTick(const std::string &symbol, const std::string &feed) override;
+
     // Websocket live data
     void subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) override;
 
@@ -31,6 +33,7 @@ private:
     std::string secretKey;
     std::string baseUrl;
     std::string dataUrl;
+    std::mutex mtx;
 
     bool isAuthenticated = false;
 
@@ -38,12 +41,17 @@ private:
     std::string performRequest(const std::string& url);
 
     // Websocket live data
+    void initializeWebSocketConnection(websocket_client& c, const std::string& url);
     void on_message(websocket_client* c, websocketpp::connection_hdl hdl, websocket_client::message_ptr msg);
     void sendMessage(websocket_client* c, websocketpp::connection_hdl hdl, const nlohmann::json& message);
-    // helper methods for building msgs
     std::string buildAuthMessage();
     std::string buildSubscriptionMessage(const std::vector<std::string>& tickers);
-    void initializeWebSocketConnection(websocket_client& c, const std::string& url);
+    void send_auth(websocket_client* c, websocketpp::connection_hdl hdl);
+    void send_subscription(websocket_client* c, websocketpp::connection_hdl hdl);
+
+    void on_open(websocket_client* c, websocketpp::connection_hdl hdl);
+    void on_close(websocket_client* c, websocketpp::connection_hdl hdl);
+    void on_fail(websocket_client* c, websocketpp::connection_hdl hdl);
 };
 
 

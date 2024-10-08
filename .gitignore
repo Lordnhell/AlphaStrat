@@ -1,5 +1,6 @@
 # Ignore IntelliJ IDEA and CLion project files
 .idea/
+.vscode/
 *.iml
 
 # Default ignored files

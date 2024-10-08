@@ -45,21 +45,31 @@ void AlpacaAdapter::subscribeLiveData(const std::vector<std::string>& tickers, b
     std::string url = testMode ? "wss://stream.data.alpaca.markets/v2/test" : "wss://stream.data.alpaca.markets/v2/stocks";
 
     // Initialize WebSocket connection
-    initializeWebSocketConnection(c, url);
+
 
     try {
+        // websocketpp::lib::error_code ec;
+        // websocket_client::connection_ptr con = c.get_connection(url, ec);
+        try {
+            initializeWebSocketConnection(c, url);
+        } catch (std::exception &e)
+        {
+            std::cerr << "Error initializing websocket connection: " << e.what() << std::endl;
+        }
+
+        // Set message handler to handle incoming messages (only once)
+        c.set_open_handler(std::bind(&AlpacaAdapter::on_open, this, &c, std::placeholders::_1));
+        c.set_message_handler(std::bind(&AlpacaAdapter::on_message, this, &c, std::placeholders::_1, std::placeholders::_2));
+        c.set_close_handler(std::bind(&AlpacaAdapter::on_close, this, &c, std::placeholders::_1));
+        c.set_fail_handler(std::bind(&AlpacaAdapter::on_fail, this, &c, std::placeholders::_1));
+
         websocketpp::lib::error_code ec;
         websocket_client::connection_ptr con = c.get_connection(url, ec);
 
         if (ec) {
-            std::cerr << "Failed to initialize connection: " << ec.message() << std::endl;
-            return;
+            std::cout << "Connection error: " << ec.message() << std::endl;
         }
 
-        // Set message handler to handle incoming messages (only once)
-        c.set_message_handler(std::bind(&AlpacaAdapter::on_message, this, &c, std::placeholders::_1, std::placeholders::_2));
-
-        // Connect and start the WebSocket event loop
         c.connect(con);
 
         // WebSocket run in a separate thread
@@ -71,19 +81,11 @@ void AlpacaAdapter::subscribeLiveData(const std::vector<std::string>& tickers, b
             }
         });
 
-        // Short delay to ensure the connection is established
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-
-        // Build and send the authentication message
-        std::cout << "> Sending authentication message..." << std::endl;
-        std::string auth_message = buildAuthMessage();
-        std::cout << "Auth message: " << auth_message << std::endl; // Log the actual message
-
-        if (con->get_state() == websocketpp::session::state::value::open) {
-            c.send(con->get_handle(), auth_message, websocketpp::frame::opcode::text);
-            std::cout << "Auth message sent" << std::endl;
-        } else {
-            std::cerr << "WebSocket connection not open. Cannot send authentication message." << std::endl;
+        // Main thread waits for WebSocket messages and handles subscription
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+            // Sending subscription message
+            send_subscription(&c, con->get_handle());
         }
 
         websocket_thread.join();
@@ -152,48 +154,22 @@ string AlpacaAdapter::performRequest(const std::string &url) {
     }
 }
 
-void AlpacaAdapter::on_message(websocket_client* c, connection_hdl hdl, websocket_client::message_ptr msg) {
-    try {
-        std::string payload = msg->get_payload();
-        auto json_msg = nlohmann::json::parse(payload);
+void AlpacaAdapter::on_message(websocket_client* c, websocketpp::connection_hdl hdl, websocket_client::message_ptr msg) {
+    std::lock_guard<std::mutex> guard(mtx);
+    std::cout << "< Received message: " << msg->get_payload() << std::endl;
+}
 
-        std::cout << "< Received message: " << payload << std::endl;  // Log the full payload
+void AlpacaAdapter::on_open(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::cout << "Connected to WebSocket server!" << std::endl;
+    AlpacaAdapter::send_auth(c, hdl);
+}
 
-        if (json_msg.contains("T")) {
-            std::string messageType = json_msg["T"];
+void AlpacaAdapter::on_close(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::cout << "Connection closed!" << std::endl;
+}
 
-            if (messageType == "success" && json_msg["msg"] == "authenticated") {
-                std::cout << "[INFO] WebSocket connection authenticated." << std::endl;
-                isAuthenticated = true;
-
-                // Send subscription message
-                std::string subscription_message = buildSubscriptionMessage({"FAKEPACA"});
-                std::cout << "> Subscribing to FAKEPACA in test mode." << std::endl;
-                c->send(hdl, subscription_message, websocketpp::frame::opcode::text);
-                std::cout << "Subscription message sent" << std::endl;
-
-            } else if (messageType == "subscription") {
-                std::cout << "[INFO] Subscription Update: " << json_msg.dump(4) << std::endl;
-            } else if (messageType == "error") {
-                std::cout << "[ERROR] Error Message: " << json_msg.dump(4) << std::endl;
-            } else if (messageType == "q") {
-                std::cout << "[QUOTE] Quote Update for Symbol: " << json_msg["S"]
-                          << " | Bid: " << json_msg["bp"] << " | Ask: " << json_msg["ap"]
-                          << " | Timestamp: " << json_msg["t"] << std::endl;
-            } else if (messageType == "t") {
-                std::cout << "[TRADE] Trade Update for Symbol: " << json_msg["S"]
-                          << " | Price: " << json_msg["p"] << " | Size: " << json_msg["s"]
-                          << " | Timestamp: " << json_msg["t"] << std::endl;
-            } else {
-                std::cout << "[UNKNOWN] Unlabeled message: " << json_msg.dump(4) << std::endl;
-            }
-        } else {
-            std::cerr << "[WARNING] Received a message without a type field: " << json_msg.dump(4) << std::endl;
-        }
-
-    } catch (const std::exception &e) {
-        std::cerr << "[EXCEPTION] Error processing WebSocket message: " << e.what() << std::endl;
-    }
+void AlpacaAdapter::on_fail(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::cout << "Connection failed!" << std::endl;
 }
 
 void AlpacaAdapter::sendMessage(websocket_client* c, connection_hdl hdl, const nlohmann::json& message) {
@@ -203,6 +179,18 @@ void AlpacaAdapter::sendMessage(websocket_client* c, connection_hdl hdl, const n
     } catch (const std::exception &e) {
         std::cerr << "Error sending WebSocket message: " << e.what() << std::endl;
     }
+}
+
+void AlpacaAdapter::send_auth(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::string auth_msg = R"({"action":"auth","key":")" + apiKey + R"(","secret":")" + secretKey + R"("})";
+    c->send(hdl, auth_msg, websocketpp::frame::opcode::text);
+    std::cout << "> Auth message: " << auth_msg << std::endl;
+}
+
+void AlpacaAdapter::send_subscription(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::string sub_msg = R"({"action":"subscribe","bars":["FAKEPACA"],"quotes":["FAKEPACA"]})";
+    c->send(hdl, sub_msg, websocketpp::frame::opcode::text);
+    std::cout << "> Subscription message: " << sub_msg << std::endl;
 }
 
 std::string AlpacaAdapter::buildAuthMessage() {
@@ -224,22 +212,17 @@ std::string AlpacaAdapter::buildSubscriptionMessage(const std::vector<std::strin
 }
 
 void AlpacaAdapter::initializeWebSocketConnection(websocket_client& c, const std::string& url) {
-    try {
-        c.init_asio();
+    c.init_asio();
 
-        // Set TLS initialization callback
-        c.set_tls_init_handler([](websocketpp::connection_hdl) -> websocketpp::lib::shared_ptr<boost::asio::ssl::context> {
-            try {
-                auto ctx = websocketpp::lib::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::sslv23);
-                ctx->set_default_verify_paths();
-                return ctx;
-            } catch (const std::exception &e) {
-                std::cerr << "TLS initialization error: " << e.what() << std::endl;
-                return nullptr;  // Return null on error
-            }
-        });
-
-    } catch (const std::exception &e) {
-        std::cerr << "Error initializing WebSocket connection: " << e.what() << std::endl;
-    }
+    // Set TLS initialization callback
+    c.set_tls_init_handler([](websocketpp::connection_hdl) -> websocketpp::lib::shared_ptr<boost::asio::ssl::context> {
+        try {
+            auto ctx = websocketpp::lib::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::sslv23);
+            ctx->set_default_verify_paths();
+            return ctx;
+        } catch (const std::exception &e) {
+            std::cerr << "TLS initialization error: " << e.what() << std::endl;
+            return nullptr;  // Return null on error
+        }
+    });
 }
