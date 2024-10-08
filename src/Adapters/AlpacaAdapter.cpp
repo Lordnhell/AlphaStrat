@@ -11,6 +11,31 @@
 
 using namespace std;
 
+AlpacaAdapter::AlpacaAdapter(const std::string& configFile) {
+    try {
+        loadConfig(configFile);
+        std::cout << "AlpacaAdapter initialized successfully." << std::endl;
+    } catch (const std::exception &e) {
+        std::cerr << "Error initializing AlpacaAdapter: " << e.what() << std::endl;
+    }
+}
+
+AlpacaAdapter::~AlpacaAdapter() {
+    gracefulDisconnect();  // Ensure graceful shutdown on object destruction
+}
+
+void AlpacaAdapter::gracefulDisconnect() {
+    try {
+        std::lock_guard<std::mutex> guard(mtx);
+        if (con->get_state() == websocketpp::session::state::open) {
+            c.close(con->get_handle(), websocketpp::close::status::going_away, "Client disconnect");
+        }
+        std::cout << "WebSocket connection closed gracefully." << std::endl;
+    } catch (const std::exception &e) {
+        std::cerr << "Error during graceful disconnect: " << e.what() << std::endl;
+    }
+}
+
 void AlpacaAdapter::initialize(const std::string& configFile) {
     try {
         loadConfig(configFile);
@@ -37,7 +62,7 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
 }
 
 void AlpacaAdapter::subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) {
-    websocket_client c;
+    // websocket_client c;
     c.get_alog().clear_channels(websocketpp::log::alevel::frame_header |
         websocketpp::log::alevel::frame_payload |
         websocketpp::log::alevel::control);
@@ -73,7 +98,7 @@ void AlpacaAdapter::subscribeLiveData(const std::vector<std::string>& tickers, b
         c.connect(con);
 
         // WebSocket run in a separate thread
-        std::thread websocket_thread([&c]() {
+        std::thread websocket_thread([this]() {
             try {
                 c.run();
             } catch (const std::exception &e) {
@@ -83,7 +108,7 @@ void AlpacaAdapter::subscribeLiveData(const std::vector<std::string>& tickers, b
 
         // Main thread waits for WebSocket messages and handles subscription
         while (true) {
-            std::this_thread::sleep_for(std::chrono::seconds(5));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
             // Sending subscription message
             send_subscription(&c, con->get_handle());
         }
@@ -157,6 +182,7 @@ string AlpacaAdapter::performRequest(const std::string &url) {
 void AlpacaAdapter::on_message(websocket_client* c, websocketpp::connection_hdl hdl, websocket_client::message_ptr msg) {
     std::lock_guard<std::mutex> guard(mtx);
     std::cout << "< Received message: " << msg->get_payload() << std::endl;
+    std::cout << "" << std::endl;
 }
 
 void AlpacaAdapter::on_open(websocket_client* c, websocketpp::connection_hdl hdl) {
@@ -184,7 +210,7 @@ void AlpacaAdapter::sendMessage(websocket_client* c, connection_hdl hdl, const n
 void AlpacaAdapter::send_auth(websocket_client* c, websocketpp::connection_hdl hdl) {
     std::string auth_msg = R"({"action":"auth","key":")" + apiKey + R"(","secret":")" + secretKey + R"("})";
     c->send(hdl, auth_msg, websocketpp::frame::opcode::text);
-    std::cout << "> Auth message: " << auth_msg << std::endl;
+    // std::cout << "> Auth message: " << auth_msg << std::endl;
 }
 
 void AlpacaAdapter::send_subscription(websocket_client* c, websocketpp::connection_hdl hdl) {

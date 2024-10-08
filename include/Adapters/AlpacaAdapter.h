@@ -17,6 +17,12 @@ typedef websocketpp::connection_hdl connection_hdl;
 
 class AlpacaAdapter : public GenericAdapter {
 public:
+    // Constructor
+    AlpacaAdapter(const std::string& configFile);
+
+    // Destructor
+    ~AlpacaAdapter();
+
     // Config parameters
     void initialize(const std::string& configFile) override;
 
@@ -25,6 +31,9 @@ public:
 
     // Websocket live data
     void subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) override;
+
+    // Graceful disconnect method
+    void gracefulDisconnect();
 
 private:
     // Config parameters
@@ -41,14 +50,18 @@ private:
     std::string performRequest(const std::string& url);
 
     // Websocket live data
+    websocket_client c;
+    websocketpp::client<websocketpp::config::asio_tls_client>::connection_ptr con;
+
     void initializeWebSocketConnection(websocket_client& c, const std::string& url);
-    void on_message(websocket_client* c, websocketpp::connection_hdl hdl, websocket_client::message_ptr msg);
-    void sendMessage(websocket_client* c, websocketpp::connection_hdl hdl, const nlohmann::json& message);
+
     std::string buildAuthMessage();
     std::string buildSubscriptionMessage(const std::vector<std::string>& tickers);
+    void sendMessage(websocket_client* c, websocketpp::connection_hdl hdl, const nlohmann::json& message);
     void send_auth(websocket_client* c, websocketpp::connection_hdl hdl);
     void send_subscription(websocket_client* c, websocketpp::connection_hdl hdl);
 
+    void on_message(websocket_client* c, websocketpp::connection_hdl hdl, websocket_client::message_ptr msg);
     void on_open(websocket_client* c, websocketpp::connection_hdl hdl);
     void on_close(websocket_client* c, websocketpp::connection_hdl hdl);
     void on_fail(websocket_client* c, websocketpp::connection_hdl hdl);

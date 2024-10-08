@@ -31,6 +31,7 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(websocketpp CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(Boost REQUIRED)
 
 #target_link_libraries(main PRIVATE nlohmann_json::nlohmann_json)
 include_directories(${PROJECT_SOURCE_DIR}/include)
