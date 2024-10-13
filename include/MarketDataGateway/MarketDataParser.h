@@ -2,7 +2,7 @@
 #define MARKETDATA_PARSER_H
 
 #include <string>
-#include "../json.hpp"
+#include <nlohmann/json.hpp>
 
 class MarketDataParser {
 public:
