@@ -25,6 +25,14 @@ add_definitions(-DBOOST_BIND_GLOBAL_PLACEHOLDERS)
 # Include the vcpkg toolchain
 #set(CMAKE_TOOLCHAIN_FILE "[path to vcpkg]/scripts/buildsystems/vcpkg.cmake")
 
+# Set Solace SDK directory
+set(SOLCLIENT_DIR "D:/AlphaStrat/Packages/packages/solclient-7.30.0.2/")
+
+# Include and link Solace headers and libraries
+include_directories(${SOLCLIENT_DIR}/include/solclient)
+link_directories(${SOLCLIENT_DIR}/lib/Win64)
+link_directories(${SOLCLIENT_DIR}/bin/Win64)
+
 # Find necessary packages
 find_package(CURL CONFIG REQUIRED)
 find_package(GTest CONFIG REQUIRED)
@@ -32,6 +40,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 find_package(websocketpp CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Boost REQUIRED)
+#find_package(SolClient CONFIG REQUIRED)
 
 #target_link_libraries(main PRIVATE nlohmann_json::nlohmann_json)
 include_directories(${PROJECT_SOURCE_DIR}/include)
@@ -42,20 +51,14 @@ file(GLOB_RECURSE TEST_FILES "tests/*.cpp")
 file(GLOB_RECURSE INCLUDE_FILES "include/*.h")
 
 # Main executable
-add_executable(AlphaStrat ${SRC_FILES} ${INCLUDE_FILES}
-        include/initialize.h
-        include/MarketDataGateway/MarketDataParser.h
-        src/MarketDataGateway/MarketDataParser.cpp
-        src/interface/GenericAdapter.cpp
-        include/interface/GenericAdapter.h
-        include/Adapters/AlpacaAdapter.h
-        src/Adapters/AlpacaAdapter.cpp
-        include/solace/solaceLib.h
-)
+add_executable(AlphaStrat ${SRC_FILES} ${INCLUDE_FILES})
+
 
 # Link necessary libraries to the main executable
+target_link_libraries(AlphaStrat PRIVATE Boost::boost)
 target_link_libraries(AlphaStrat PRIVATE CURL::libcurl ws2_32)
 target_link_libraries(AlphaStrat PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(AlphaStrat PRIVATE ws2_32 solclient)
 
 ## Test executable (make sure to include all source files)
 #add_executable(AlphaStratTests ${TEST_FILES} ${SRC_FILES} ${INCLUDE_FILES}
