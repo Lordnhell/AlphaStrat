@@ -1,105 +1,137 @@
-// // SolaceLib.cpp
-// #include <winsock2.h>
-// #include "../include/solace/solaceLib.h"
-// #include <iostream>
-// #include <solClient.h>
-//
-// SolaceLib::SolaceLib() : session(nullptr) {
-//     solClient_initialize(SOLCLIENT_LOG_DEFAULT_FILTER, nullptr);
-// }
-//
-// SolaceLib::~SolaceLib() {
-//     if (session) {
-//         solClient_session_disconnect(session);
-//         solClient_session_destroy(&session);
-//     }
-//     solClient_cleanup();
-// }
-//
-// bool SolaceLib::connect(const std::string& brokerUrl, const std::string& clientId, const std::string& username, const std::string& password) {
-//     try {
-//         setupSession(brokerUrl, clientId, username, password);
-//         solClient_session_connect(session);
-//         std::cout << "Connected to Solace broker at " << brokerUrl << std::endl;
-//         return true;
-//     } catch (const std::exception& e) {
-//         std::cerr << "Connection failed: " << e.what() << std::endl;
-//         return false;
-//     }
-// }
-//
-// void SolaceLib::setupSession(const std::string& brokerUrl,
-//                              const std::string& clientId,
-//                              const std::string& username,
-//                              const std::string& password) {
-//     solClient_context_createFuncInfo_t contextFuncInfo = SOLCLIENT_CONTEXT_CREATEFUNC_INITIALIZER;
-//     solClient_opaqueContext_pt context;
-//     solClient_context_create(SOLCLIENT_CONTEXT_PROPS_DEFAULT_WITH_CREATE_THREAD, &context, &contextFuncInfo, sizeof(contextFuncInfo));
-//
-//     solClient_session_createFuncInfo_t sessionFuncInfo = SOLCLIENT_SESSION_CREATEFUNC_INITIALIZER;
-//     sessionFuncInfo.rxMsgInfo.callback_p = [](solClient_opaqueSession_pt, solClient_opaqueMsg_pt msg, void*) -> solClient_rxMsgCallback_returnCode_t {
-//         solClient_msg_dump(msg, nullptr, 0);
-//         return SOLCLIENT_CALLBACK_OK;
-//     };
-//     sessionFuncInfo.eventInfo.callback_p = [](solClient_opaqueSession_pt, solClient_session_eventCallbackInfo_pt eventInfo, void*) {
-//         std::cout << "Session Event: " << solClient_session_eventToString(eventInfo->sessionEvent) << std::endl;
-//     };
-//
-//     const char* sessionProps[] = {
-//         SOLCLIENT_SESSION_PROP_HOST, brokerUrl.c_str(),
-//         SOLCLIENT_SESSION_PROP_VPN_NAME, "default",
-//         SOLCLIENT_SESSION_PROP_USERNAME, username.c_str(),
-//         SOLCLIENT_SESSION_PROP_PASSWORD, password.c_str(),
-//         nullptr
-//     };
-//
-//     solClient_returnCode_t rc = solClient_session_create(
-//         const_cast<char**>(sessionProps),
-//         context,
-//         &session,
-//         &sessionFuncInfo,
-//         sizeof(sessionFuncInfo)
-//     );
-//     if (rc != SOLCLIENT_OK) {
-//         throw std::runtime_error("Failed to create Solace session");
-//     }
-// }
-//
-// bool SolaceLib::publish(const std::string& topic, const std::string& message) {
-//     solClient_opaqueMsg_pt msg;
-//     solClient_msg_alloc(&msg);
-//     solClient_msg_setDeliveryMode(msg, SOLCLIENT_DELIVERY_MODE_DIRECT);
-//
-//     solClient_destination_t destination = { SOLCLIENT_TOPIC_DESTINATION, topic.c_str() };
-//     solClient_msg_setDestination(msg, &destination);
-//     solClient_msg_setBinaryAttachmentString(msg, message.c_str());
-//
-//     solClient_returnCode_t rc = solClient_session_sendMsg(session, msg);
-//     solClient_msg_free(&msg);
-//
-//     if (rc == SOLCLIENT_OK) {
-//         std::cout << "Message published to " << topic << ": " << message << std::endl;
-//         return true;
-//     } else {
-//         std::cerr << "Failed to publish message to " << topic << std::endl;
-//         return false;
-//     }
-// }
-//
-// bool SolaceLib::subscribe(const std::string& topic, std::function<void(const std::string&)> messageHandler) {
-//     solClient_returnCode_t rc = solClient_session_topicSubscribeExt(session, SOLCLIENT_SUBSCRIBE_FLAGS_WAITFORCONFIRM, topic.c_str());
-//     if (rc != SOLCLIENT_OK) {
-//         std::cerr << "Failed to subscribe to topic: " << topic << std::endl;
-//         return false;
-//     }
-//
-//     std::cout << "Subscribed to topic: " << topic << std::endl;
-//
-//     // The message processing would be handled in the callback defined in setupSession.
-//     return true;
-// }
-//
-// void SolaceLib::disconnect() {
-//     solClient_session_disconnect(session);
-//     std::cout << "Disconnected from Solace broker." << std::endl;
-// }
+#include "../include/solace/solaceLib.h"
+#include <iostream>
+#include <fstream>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+solaceLib::solaceLib(const std::string& configFilePath) {
+    // Initialize Solace API
+    solClient_initialize(SOLCLIENT_LOG_DEFAULT_FILTER, NULL);
+
+    // Load configuration from the provided config file
+    loadConfig(configFilePath);
+
+    // Create and connect the Solace session
+    createSession();
+}
+
+solaceLib::~solaceLib() {
+    // Clean up the Solace session and context
+    if (session) {
+        solClient_session_disconnect(session);
+        solClient_session_destroy(&session);
+    }
+    if (context) {
+        solClient_context_destroy(&context);
+    }
+    solClient_cleanup();
+}
+
+void solaceLib::loadConfig(const std::string& configFilePath) {
+    std::ifstream configFile(configFilePath);
+    if (!configFile.is_open()) {
+        throw std::runtime_error("Failed to open config file: " + configFilePath);
+    }
+
+    json configJson;
+    configFile >> configJson;
+
+    // Navigate through the nested structure to load Solace configurations
+    host = configJson["solace"]["solaceLib"]["host"].get<std::string>();
+    vpn = configJson["solace"]["solaceLib"]["vpn"].get<std::string>();
+    username = configJson["solace"]["solaceLib"]["username"].get<std::string>();
+    password = configJson["solace"]["solaceLib"]["password"].get<std::string>();
+    trustStoreDir = configJson["solace"]["solaceLib"]["trustStoreDir"].get<std::string>();
+}
+
+void solaceLib::createSession() {
+    // Define session properties (connection details from loaded config)
+    const char* sessionProps[] = {
+        SOLCLIENT_SESSION_PROP_HOST, host.c_str(),
+        SOLCLIENT_SESSION_PROP_VPN_NAME, vpn.c_str(),
+        SOLCLIENT_SESSION_PROP_USERNAME, username.c_str(),
+        SOLCLIENT_SESSION_PROP_PASSWORD, password.c_str(),
+        SOLCLIENT_SESSION_PROP_SSL_TRUST_STORE_DIR, trustStoreDir.c_str(),
+        SOLCLIENT_SESSION_PROP_CONNECT_BLOCKING, SOLCLIENT_PROP_ENABLE_VAL,
+        NULL
+    };
+
+    // Initialize the context function information
+    solClient_context_createFuncInfo_t contextFuncInfo = SOLCLIENT_CONTEXT_CREATEFUNC_INITIALIZER;
+
+    // Create a context with function info
+    solClient_returnCode_t rc = solClient_context_create(SOLCLIENT_CONTEXT_PROPS_DEFAULT_WITH_CREATE_THREAD, &context, &contextFuncInfo, sizeof(contextFuncInfo));
+
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to create Solace context: " + std::string(solClient_returnCodeToString(rc)));
+    }
+
+    // Set up session callback information
+    solClient_session_createFuncInfo_t sessionFuncInfo = SOLCLIENT_SESSION_CREATEFUNC_INITIALIZER;
+    sessionFuncInfo.rxMsgInfo.callback_p = messageReceiveCallback;
+    sessionFuncInfo.rxMsgInfo.user_p = this;
+    sessionFuncInfo.eventInfo.callback_p = sessionEventCallback;  // This will be corrected to return void
+    sessionFuncInfo.eventInfo.user_p = this;
+
+    // Cast sessionProps to match the expected property array type
+    rc = solClient_session_create((solClient_propertyArray_pt)sessionProps, context, &session, &sessionFuncInfo, sizeof(sessionFuncInfo));
+
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to create Solace session: " + std::string(solClient_returnCodeToString(rc)));
+    }
+
+    // Connect the session
+    rc = solClient_session_connect(session);
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to connect to Solace broker.");
+    }
+}
+
+
+void solaceLib::publishMessage(const std::string& topic, const std::string& message) {
+    // Create a message
+    solClient_opaqueMsg_pt msg;
+    solClient_msg_alloc(&msg);
+    solClient_msg_setDeliveryMode(msg, SOLCLIENT_DELIVERY_MODE_DIRECT);
+    solClient_msg_setBinaryAttachmentString(msg, message.c_str());
+
+    // Set the destination (topic)
+    solClient_destination_t destination;
+    destination.destType = SOLCLIENT_TOPIC_DESTINATION;
+    destination.dest = topic.c_str();
+    solClient_msg_setDestination(msg, &destination, sizeof(destination));
+
+    // Publish the message
+    solClient_returnCode_t rc = solClient_session_sendMsg(session, msg);
+    if (rc != SOLCLIENT_OK) {
+        std::cerr << "Failed to send message." << std::endl;
+    } else {
+        std::cout << "Message sent successfully to topic: " << topic << std::endl;
+    }
+
+    // Cleanup
+    solClient_msg_free(&msg);
+}
+
+void solaceLib::subscribeToTopic(const std::string& topic) {
+    // Subscribe to the topic
+    solClient_returnCode_t rc = solClient_session_topicSubscribeExt(session, SOLCLIENT_SUBSCRIBE_FLAGS_WAITFORCONFIRM, topic.c_str());
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to subscribe to topic: " + topic);
+    }
+    std::cout << "Subscribed to topic: " << topic << std::endl;
+}
+
+solClient_rxMsgCallback_returnCode_t solaceLib::messageReceiveCallback(solClient_opaqueSession_pt session_p, solClient_opaqueMsg_pt msg_p, void *user_p) {
+    void* msgText;  // Changed to void* for proper type matching
+    solClient_uint32_t msgSize;
+    solClient_msg_getBinaryAttachmentPtr(msg_p, (solClient_opaquePointer_pt)&msgText, &msgSize);  // Corrected cast
+    std::cout << "Received message: " << std::string((char*)msgText, msgSize) << std::endl;
+    return SOLCLIENT_CALLBACK_OK;
+}
+
+// Fix: Changed the return type of sessionEventCallback to void
+void solaceLib::sessionEventCallback(solClient_opaqueSession_pt session_p, solClient_session_eventCallbackInfo_pt eventInfo_p, void* user_p) {
+    std::cout << "Received session event: " << solClient_session_eventToString(eventInfo_p->sessionEvent) << std::endl;
+}
