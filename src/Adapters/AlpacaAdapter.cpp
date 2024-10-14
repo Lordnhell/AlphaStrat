@@ -128,11 +128,14 @@ void AlpacaAdapter::loadConfig(const std::string &configFile) {
         if (file.is_open()) {
             nlohmann::json config;
             file >> config;
-            apiKey = config["api_key"];
-            secretKey = config["api_secret"];
-            baseUrl = config["base_url"];
-            dataUrl = config["data_url"];
-            std::cout << "Config loaded successfully." << std::endl;
+
+            // Load Alpaca config from the nested structure
+            apiKey = config["marketAdapter"]["alpacaAdapter"]["api_key"];
+            secretKey = config["marketAdapter"]["alpacaAdapter"]["api_secret"];
+            baseUrl = config["marketAdapter"]["alpacaAdapter"]["base_url"];
+            dataUrl = config["marketAdapter"]["alpacaAdapter"]["data_url"];
+
+            std::cout << "Alpaca config loaded successfully." << std::endl;
         } else {
             throw std::runtime_error("Unable to open config file.");
         }
