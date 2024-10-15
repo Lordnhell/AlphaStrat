@@ -3,6 +3,11 @@
 .vscode/
 *.iml
 
+# Ignore everything in Packages/ except for packages/solclient-7.30.0.2/
+Packages/*
+!Packages/packages/
+!Packages/packages/solclient-7.30.0.2/
+
 # Default ignored files
 /shelf/
 /workspace.xml

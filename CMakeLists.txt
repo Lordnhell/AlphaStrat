@@ -26,12 +26,12 @@ add_definitions(-DBOOST_BIND_GLOBAL_PLACEHOLDERS)
 #set(CMAKE_TOOLCHAIN_FILE "[path to vcpkg]/scripts/buildsystems/vcpkg.cmake")
 
 # Set Solace SDK directory
-set(SOLCLIENT_DIR "D:/AlphaStrat/Packages/packages/solclient-7.30.0.2/")
+set(SOLCLIENT_DIR "${CMAKE_SOURCE_DIR}/Packages/packages/solclient-7.30.0.2/")
 
 # Include and link Solace headers and libraries
 include_directories(${SOLCLIENT_DIR}/include/solclient)
 link_directories(${SOLCLIENT_DIR}/lib/Win64)
-link_directories(${SOLCLIENT_DIR}/bin/Win64)
+#link_directories(${SOLCLIENT_DIR}/bin/Win64)
 
 # Find necessary packages
 find_package(CURL CONFIG REQUIRED)
@@ -40,7 +40,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 find_package(websocketpp CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Boost REQUIRED)
-#find_package(SolClient CONFIG REQUIRED)
+#find_package(SolClient REQUIRED)
 
 #target_link_libraries(main PRIVATE nlohmann_json::nlohmann_json)
 include_directories(${PROJECT_SOURCE_DIR}/include)

@@ -134,8 +134,13 @@ void AlpacaAdapter::loadConfig(const std::string &configFile) {
             secretKey = config["marketAdapter"]["alpacaAdapter"]["api_secret"];
             baseUrl = config["marketAdapter"]["alpacaAdapter"]["base_url"];
             dataUrl = config["marketAdapter"]["alpacaAdapter"]["data_url"];
+            mode = config["marketAdapter"]["mode"];
+            mode_options = config["marketAdapter"]["mode_options"];
 
             std::cout << "Alpaca config loaded successfully." << std::endl;
+            std::cout << "Available modes: " + mode_options << std::endl;
+            std::cout << "Change ../config/config.json for mode. Current mode: " + mode << std::endl;
+
         } else {
             throw std::runtime_error("Unable to open config file.");
         }

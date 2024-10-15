@@ -50,8 +50,16 @@ int main() {
 
         // Run a loop to continuously publish messages and receive them
         int messageCount = 0;
+        nlohmann::json jsonObj = {
+            {"key1", "value1"},
+            {"key2", 42},
+            {"key3", true}
+        };
 
-        while (messageCount < 10) {  // You can adjust the condition for the loop
+        // Convert the JSON object to a string
+        std::string jsonString = jsonObj.dump();
+
+        while (messageCount < 100) {  // You can adjust the condition for the loop
             // Create a new message
             std::string message = "Hello from Solace! Message #" + std::to_string(messageCount);
 

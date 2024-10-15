@@ -42,6 +42,8 @@ private:
     std::string secretKey;
     std::string baseUrl;
     std::string dataUrl;
+    std::string mode;
+    std::string mode_options;
     std::mutex mtx;
 
     bool isAuthenticated = false;
