@@ -12,12 +12,7 @@
 using namespace std;
 
 AlpacaAdapter::AlpacaAdapter(const std::string& configFile) {
-    try {
-        loadConfig(configFile);
-        std::cout << "AlpacaAdapter initialized successfully." << std::endl;
-    } catch (const std::exception &e) {
-        std::cerr << "Error initializing AlpacaAdapter: " << e.what() << std::endl;
-    }
+    loadConfig(configFile);
 }
 
 AlpacaAdapter::~AlpacaAdapter() {
@@ -37,12 +32,12 @@ void AlpacaAdapter::gracefulDisconnect() {
 }
 
 void AlpacaAdapter::initialize(const std::string& configFile) {
-    try {
-        loadConfig(configFile);
-        std::cout << "AlpacaAdapter initialized successfully." << std::endl;
-    } catch (const std::exception &e) {
-        std::cerr << "Error initializing AlpacaAdapter: " << e.what() << std::endl;
-    }
+    // try {
+    //     loadConfig(configFile);
+    //     std::cout << "AlpacaAdapter initialized successfully." << std::endl;
+    // } catch (const std::exception &e) {
+    //     std::cerr << "Error initializing AlpacaAdapter: " << e.what() << std::endl;
+    // }
 }
 
 string AlpacaAdapter::getLatestTick(const std::string &symbol, const std::string &feed) {
@@ -122,6 +117,32 @@ void AlpacaAdapter::subscribeLiveData(const std::vector<std::string>& tickers, b
     }
 }
 
+void AlpacaAdapter::createOrder(const Order& order) {
+    // Set up the API URL
+    std::string url = baseUrl + "/v2/orders";
+
+    // Create the JSON body from the Order object
+    nlohmann::json body = {
+        {"symbol", order.getInstrument()},
+        {"qty", std::to_string(order.getQuantity())},
+        {"side", order.getOrderType()},   // Assuming order.getOrderType() returns "buy" or "sell"
+        {"type", "market"},  // Assuming you're using a market order; can be dynamic if needed
+        {"time_in_force", order.getTimeInForce()}
+    };
+
+    // Optional fields (e.g., limit_price and stop_price) are included only if applicable
+    if (order.getPrice() > 0) {
+        body["limit_price"] = std::to_string(order.getPrice());
+    }
+
+    // Make the HTTP POST request using the existing performRequest() method
+    std::string response = performRequest(url);
+
+    // Print or handle the response (for debugging/logging)
+    std::cout << "Order response: " << response << std::endl;
+}
+
+
 void AlpacaAdapter::loadConfig(const std::string &configFile) {
     try {
         std::ifstream file(configFile);
@@ -134,13 +155,13 @@ void AlpacaAdapter::loadConfig(const std::string &configFile) {
             secretKey = config["marketAdapter"]["alpacaAdapter"]["api_secret"];
             baseUrl = config["marketAdapter"]["alpacaAdapter"]["base_url"];
             dataUrl = config["marketAdapter"]["alpacaAdapter"]["data_url"];
-            mode = config["marketAdapter"]["mode"];
-            mode_options = config["marketAdapter"]["mode_options"];
+            mode = config["marketAdapter"]["alpacaAdapter"]["mode"];
+            mode_options = config["marketAdapter"]["alpacaAdapter"]["mode_options"];
 
             std::cout << "Alpaca config loaded successfully." << std::endl;
             std::cout << "Available modes: " + mode_options << std::endl;
             std::cout << "Change ../config/config.json for mode. Current mode: " + mode << std::endl;
-
+            std::cout << "" << std::endl;
         } else {
             throw std::runtime_error("Unable to open config file.");
         }
@@ -161,7 +182,7 @@ string AlpacaAdapter::performRequest(const std::string &url) {
         curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(hnd, CURLOPT_WRITEDATA, &readBuffer);
 
-        struct curl_slist* headers = NULL;
+        struct curl_slist* headers = nullptr;
         headers = curl_slist_append(headers, "accept: application/json");
         std::string apiKeyHeader = "APCA-API-KEY-ID: " + apiKey;
         headers = curl_slist_append(headers, apiKeyHeader.c_str());
