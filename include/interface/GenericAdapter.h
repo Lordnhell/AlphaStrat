@@ -23,7 +23,8 @@ public:
     // virtual void orderManagementMethod() = 0;
 
     // solace related
-    // virtual void publisherToSolace() = 0;
+    // virtual void publisherToTopic() = 0;
+    // virtual void subscribeToTopic() = 0;
 
 };
 

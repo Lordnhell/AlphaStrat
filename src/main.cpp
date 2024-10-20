@@ -7,7 +7,7 @@
 //#include "../include/Aggregator.h"
 //#include "../include/MarketDataGateway.h"
 //#include "../include/OrderGateway.h"
-//#include "../include/OrderManagementSystem.h"
+#include "../include/orderGatway/OMS.h"
 //#include "../include/TradingEngine.h"
 #include <nlohmann/json.hpp>
 #include "../include/MarketDataGateway/MarketDataGateway.h"
@@ -35,60 +35,95 @@ void runAdapter(const std::string& configFile, const std::vector<std::string>& t
 
 int main() {
 
+    OrderManagementSystem oms;
+    oms.initializeAdapters();
+
+    /*
+      eventlistener{
+        listen for order from solace
+        have an on message router (example, cld be sending order or cancelling order get pnl ETC)
+        deserialize orders back order object using boost object
+        send to create order method
+        inside create order method, call order router method
+        order router wil route according to nature
+
+    }/*
+
+    /*
+This block of code demonstrates the use of the solaceLib client for connecting to a Solace messaging platform, subscribing to a specific topic, and publishing JSON-encoded messages to that topic.
+
+The solaceLib instance is initialized using a configuration file path, and the client subscribes to the topic `"example/topic"`.
+
+Inside a loop, it publishes 100 messages, each prefixed with "Hello from Solace!" and an incremented message count. After sending each message, it simulates a delay of 1 second. Once the loop is complete, the program continues running to allow receiving messages.
+
+If any exception occurs during execution, it is caught, and the error is printed to the console.
+*/
+
+    // try {
+    //     // Create an instance of solaceLib with the path to your config file
+    //     solaceLib solaceClient("../config/config.json");
+    //
+    //     // Define the topic
+    //     std::string topic = "example/topic";
+    //
+    //     // Subscribe to the topic
+    //     solaceClient.subscribeToTopic(topic);
+    //
+    //     // Run a loop to continuously publish messages and receive them
+    //     int messageCount = 0;
+    //     nlohmann::json jsonObj = {
+    //         {"key1", "value1"},
+    //         {"key2", 42},
+    //         {"key3", true}
+    //     };
+    //
+    //     // Convert the JSON object to a string
+    //     std::string jsonString = jsonObj.dump();
+    //
+    //     while (messageCount < 100) {  // You can adjust the condition for the loop
+    //         // Create a new message
+    //         std::string message = "Hello from Solace! Message #" + std::to_string(messageCount);
+    //
+    //         // Publish the message
+    //         solaceClient.publishMessage(topic, message);
+    //
+    //         // Simulate a delay between message sends (e.g., 1 second)
+    //         std::this_thread::sleep_for(std::chrono::seconds(1));
+    //
+    //         // Increment the message count
+    //         messageCount++;
+    //     }
+    //
+    //     std::cout << "Finished sending messages." << std::endl;
+    //
+    //     // Keep the program running to receive messages (optional)
+    //     while (true) {
+    //         std::this_thread::sleep_for(std::chrono::seconds(10));
+    //     }
+    //
+    // } catch (const std::exception &e) {
+    //     std::cerr << "Exception: " << e.what() << std::endl;
+    // }
+
+    /*
+ Code demonstrates how to run multiple threads, each initializing and running a
+ separate adapter for a set of tickers.The configuration files and tickers for
+ each thread are stored in vectors. Based on a user-defined mode
+ (test mode or paper trading mode), each thread starts an adapter instance
+ with its respective configuration and ticker list. The threads are then joined to
+ ensure the main program waits for all threads to finish execution.
+ Additionally, an example is shown using an AlpacaAdapter to fetch the latest
+ stock tick for "TSLA" from the "iex" data source.
+
     //add thread pool for handling many adapters, doing a manual approach for now
     //(alpaca only allows one subscription (free), this will be used for other adapters)
+*/
 
-    try {
-        // Create an instance of solaceLib with the path to your config file
-        solaceLib solaceClient("../config/config.json");
+    // // Register signal handler
+    // signal(SIGINT, signalHandler);
+    // signal(SIGTERM, signalHandler);
 
-        // Define the topic
-        std::string topic = "example/topic";
-
-        // Subscribe to the topic
-        solaceClient.subscribeToTopic(topic);
-
-        // Run a loop to continuously publish messages and receive them
-        int messageCount = 0;
-        nlohmann::json jsonObj = {
-            {"key1", "value1"},
-            {"key2", 42},
-            {"key3", true}
-        };
-
-        // Convert the JSON object to a string
-        std::string jsonString = jsonObj.dump();
-
-        while (messageCount < 100) {  // You can adjust the condition for the loop
-            // Create a new message
-            std::string message = "Hello from Solace! Message #" + std::to_string(messageCount);
-
-            // Publish the message
-            solaceClient.publishMessage(topic, message);
-
-            // Simulate a delay between message sends (e.g., 1 second)
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-
-            // Increment the message count
-            messageCount++;
-        }
-
-        std::cout << "Finished sending messages." << std::endl;
-
-        // Keep the program running to receive messages (optional)
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::seconds(10));
-        }
-
-    } catch (const std::exception &e) {
-        std::cerr << "Exception: " << e.what() << std::endl;
-    }
-
-    // Register signal handler
-    signal(SIGINT, signalHandler);
-    signal(SIGTERM, signalHandler);
-
-    // Example for running multiples threads
+    // // Example for running multiples threads
     // std::vector<std::string> configFiles = {
     //     "../config/config.json",
     //     "../config/config.json"// Add as many as you want
@@ -126,10 +161,10 @@ int main() {
     // }
 
     // AlpacaAdapter alpaca_adapter("../config/config.json");
-    // // alpaca_adapter.initialize("../config/config.json");
-    //
+    // alpaca_adapter.initialize("../config/config.json");
+    // //
     // string response2 = alpaca_adapter.getLatestTick("tsla", "iex") ;
-    //
+    // //
     // cout << "" << endl;
     // cout << response2 << endl;
 

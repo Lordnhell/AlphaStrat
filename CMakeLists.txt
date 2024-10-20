@@ -53,7 +53,6 @@ file(GLOB_RECURSE INCLUDE_FILES "include/*.h")
 # Main executable
 add_executable(AlphaStrat ${SRC_FILES} ${INCLUDE_FILES})
 
-
 # Link necessary libraries to the main executable
 target_link_libraries(AlphaStrat PRIVATE Boost::boost)
 target_link_libraries(AlphaStrat PRIVATE CURL::libcurl ws2_32)
