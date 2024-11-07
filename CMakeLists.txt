@@ -51,7 +51,8 @@ file(GLOB_RECURSE TEST_FILES "tests/*.cpp")
 file(GLOB_RECURSE INCLUDE_FILES "include/*.h")
 
 # Main executable
-add_executable(AlphaStrat ${SRC_FILES} ${INCLUDE_FILES})
+add_executable(AlphaStrat ${SRC_FILES} ${INCLUDE_FILES}
+        include/interface/AdapterEnum.h)
 
 # Link necessary libraries to the main executable
 target_link_libraries(AlphaStrat PRIVATE Boost::boost)
