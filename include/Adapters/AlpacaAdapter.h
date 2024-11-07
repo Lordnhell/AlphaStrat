@@ -10,7 +10,7 @@
 #include <nlohmann/json.hpp>
 #include <websocketpp/config/asio_client.hpp>  // for TLS connection
 #include <websocketpp/client.hpp>
-#include <orderGatway/Order.h>
+#include <orderGateway/Order.h>
 
 
 typedef websocketpp::client<websocketpp::config::asio_tls_client> websocket_client;
@@ -34,7 +34,7 @@ public:
     void subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) override;
 
     //create order
-    void createOrder(const Order& order);
+    std::string createOrder(const Order& order);
 
     // Graceful disconnect method
     void gracefulDisconnect();

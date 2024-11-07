@@ -117,29 +117,60 @@ void AlpacaAdapter::subscribeLiveData(const std::vector<std::string>& tickers, b
     }
 }
 
-void AlpacaAdapter::createOrder(const Order& order) {
-    // Set up the API URL
-    std::string url = baseUrl + "/v2/orders";
+std::string AlpacaAdapter::createOrder(const Order& order) {
+    std::cout << "Alpaca create order called" << std::endl;
 
-    // Create the JSON body from the Order object
+    // Build the JSON body for the order
     nlohmann::json body = {
-        {"symbol", order.getInstrument()},
-        {"qty", std::to_string(order.getQuantity())},
-        {"side", order.getOrderType()},   // Assuming order.getOrderType() returns "buy" or "sell"
-        {"type", "market"},  // Assuming you're using a market order; can be dynamic if needed
-        {"time_in_force", order.getTimeInForce()}
+        {"symbol", order.getInstrument()},       // Symbol or asset to trade
+        {"qty", std::to_string(order.getQuantity())}, // Quantity (number of shares/contracts)
+        {"side", order.getSide()},               // Buy or sell
+        {"type", order.getOrderType()},          // Order type (market, limit, stop, etc.)
+        {"time_in_force", order.getTimeInForce()} // Time in force (e.g., day, gtc, ioc)
     };
 
-    // Optional fields (e.g., limit_price and stop_price) are included only if applicable
-    if (order.getPrice() > 0) {
-        body["limit_price"] = std::to_string(order.getPrice());
+    // Handle optional fields based on the order type
+    if (order.getOrderType() == "limit" || order.getOrderType() == "stop_limit") {
+        if (order.getLimitPrice()) {
+            body["limit_price"] = std::to_string(order.getLimitPrice().value());
+        }
     }
 
-    // Make the HTTP POST request using the existing performRequest() method
-    std::string response = performRequest(url);
+    if (order.getOrderType() == "stop" || order.getOrderType() == "stop_limit") {
+        if (order.getStopPrice()) {
+            body["stop_price"] = std::to_string(order.getStopPrice().value());
+        }
+    }
 
-    // Print or handle the response (for debugging/logging)
-    std::cout << "Order response: " << response << std::endl;
+    if (order.getOrderType() == "trailing_stop") {
+        if (order.getTrailPrice()) {
+            body["trail_price"] = std::to_string(order.getTrailPrice().value());
+        }
+        if (order.getTrailPercent()) {
+            body["trail_percent"] = std::to_string(order.getTrailPercent().value());
+        }
+    }
+
+    // Optional extended hours field for limit and day order types
+    if (order.getTimeInForce() == "day" && (order.getOrderType() == "limit" || order.getOrderType() == "stop_limit")) {
+        body["extended_hours"] = order.isExtendedHours();
+    }
+
+    // Optional fields
+    if (!order.getClientOrderID().empty()) {
+        body["client_order_id"] = order.getClientOrderID();
+    }
+
+    if (!order.getOrderClass().empty()) {
+        body["order_class"] = order.getOrderClass();
+    }
+
+    // Print the constructed JSON for debugging
+    std::cout << "" << std::endl;
+    std::cout << "Constructed Alpaca order JSON: " << body.dump(4) << std::endl;
+
+    // Returning the constructed JSON as a string
+    return body.dump();
 }
 
 

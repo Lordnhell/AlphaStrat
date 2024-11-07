@@ -6,9 +6,10 @@
 #include <vector>
 #include <thread>
 #include <functional>
-#include "../include/orderGatway/OMS.h"
-#include "../include/orderGatway/Order.h"
+#include "../include/orderGateway/OMS.h"
+#include "../include/orderGateway/Order.h"
 #include "../interface/GenericAdapter.h" // Base class for different adapters (IBKRAdapter, AlpacaAdapter, etc.)
+#include <interface/AdapterEnum.h>
 
 class OrderManagementSystem {
 public:
@@ -29,7 +30,7 @@ public:
     // std::string generateOrderID(const std::string& instrumentSymbol, const std::string& orderType, const std::string& teId);
     //
     // // Function to submit a new order (calls the relevant adapter)
-    // void submitOrder(const Order& order);
+    void submitOrder(const Order& order, AdapterEnum adapterType);
     //
     // // Function to cancel an existing order
     // void cancelOrder(const std::string& orderId);
@@ -85,7 +86,7 @@ public:
 
 private:
     // Map to store multiple adapters for different brokers
-    std::map<std::string, GenericAdapter*> adapters;
+    std::map<AdapterEnum, GenericAdapter*> OMSadapters;
 
     // Portfolio details: instrument -> quantity
     // std::map<std::string, double> portfolio;
@@ -102,6 +103,8 @@ private:
 
     // Map to track order status
     std::map<std::string, Order> activeOrders;
+
+    GenericAdapter* getAdapter(AdapterEnum adapterType);
 
     // Function to update order status (e.g., Partially Filled, Filled, Cancelled)
     // void updateOrderStatus(const std::string& orderId, const std::string& status);

@@ -7,12 +7,14 @@
 //#include "../include/Aggregator.h"
 //#include "../include/MarketDataGateway.h"
 //#include "../include/OrderGateway.h"
-#include "../include/orderGatway/OMS.h"
+#include "../include/orderGateway/OMS.h"
 //#include "../include/TradingEngine.h"
 #include <nlohmann/json.hpp>
 #include "../include/MarketDataGateway/MarketDataGateway.h"
 #include "../include/solace/solaceLib.h"
 #include "Adapters/AlpacaAdapter.h"
+#include "orderGateway/Order.h"
+#include "interface/AdapterEnum.h"
 
 using namespace std;
 
@@ -37,6 +39,23 @@ int main() {
 
     OrderManagementSystem oms;
     oms.initializeAdapters();
+    Order example_order("AlpacaOrder001",
+        "AAPL",
+        Order::Side::Buy,
+        100,
+        Order::OrderType::Limit,
+        Order::TimeInForce::Day,
+        "NYSE");
+
+    // Setting optional parameters
+    example_order.setLimitPrice(145.50);
+    // example_order.setClientOrderID("AlpacaOrder001");
+    example_order.setExtendedHours(true);
+
+    oms.submitOrder(example_order, AdapterEnum::Alpaca);
+
+    // unsigned int numThreads = std::thread::hardware_concurrency();
+    // std::cout << "Number of hardware threads: " << numThreads << std::endl;
 
     /*
       eventlistener{
