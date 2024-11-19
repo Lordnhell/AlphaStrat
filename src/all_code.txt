@@ -1,0 +1,1135 @@
+#include <winsock2.h>
+#include <solClient.h>
+#include <solClientMsg.h>
+#include <iostream>
+#include <fstream>
+
+//#include "../include/Aggregator.h"
+//#include "../include/MarketDataGateway.h"
+//#include "../include/OrderGateway.h"
+#include "../include/orderGateway/OMS.h"
+//#include "../include/TradingEngine.h"
+#include <nlohmann/json.hpp>
+#include "../include/MarketDataGateway/MarketDataGateway.h"
+#include "../include/solace/solaceLib.h"
+#include "Adapters/AlpacaAdapter.h"
+#include "orderGateway/Order.h"
+#include "interface/AdapterEnum.h"
+
+using namespace std;
+
+// Signal handler
+AlpacaAdapter* adapter_ptr = nullptr;
+
+void signalHandler(int signal) {
+    std::cout << "Interrupt signal (" << signal << ") received. Performing graceful shutdown..." << std::endl;
+    if (adapter_ptr) {
+        adapter_ptr->gracefulDisconnect();
+    }
+    exit(signal);
+}
+
+// Function to run an adapter and subscribe to live data
+void runAdapter(const std::string& configFile, const std::vector<std::string>& tickers, bool testMode) {
+    AlpacaAdapter adapter(configFile);
+    adapter.subscribeLiveData(tickers, testMode);
+}
+
+int main() {
+
+    OrderManagementSystem oms;
+    oms.initializeAdapters();
+    Order example_order("AlpacaOrder001",
+        "AAPL",
+        Order::Side::Buy,
+        100,
+        Order::OrderType::Limit,
+        Order::TimeInForce::Day,
+        "NYSE");
+
+    // Setting optional parameters
+    example_order.setLimitPrice(145.50);
+    // example_order.setClientOrderID("AlpacaOrder001");
+    example_order.setExtendedHours(true);
+
+    oms.submitOrder(example_order, AdapterEnum::Alpaca);
+
+    // unsigned int numThreads = std::thread::hardware_concurrency();
+    // std::cout << "Number of hardware threads: " << numThreads << std::endl;
+
+    /*
+      eventlistener{
+        listen for order from solace
+        have an on message router (example, cld be sending order or cancelling order get pnl ETC)
+        deserialize orders back order object using boost object
+        send to create order method
+        inside create order method, call order router method
+        order router wil route according to nature
+
+    }/*
+
+    /*
+This block of code demonstrates the use of the solaceLib client for connecting to a Solace messaging platform, subscribing to a specific topic, and publishing JSON-encoded messages to that topic.
+
+The solaceLib instance is initialized using a configuration file path, and the client subscribes to the topic `"example/topic"`.
+
+Inside a loop, it publishes 100 messages, each prefixed with "Hello from Solace!" and an incremented message count. After sending each message, it simulates a delay of 1 second. Once the loop is complete, the program continues running to allow receiving messages.
+
+If any exception occurs during execution, it is caught, and the error is printed to the console.
+*/
+
+    // try {
+    //     // Create an instance of solaceLib with the path to your config file
+    //     solaceLib solaceClient("../config/config.json");
+    //
+    //     // Define the topic
+    //     std::string topic = "example/topic";
+    //
+    //     // Subscribe to the topic
+    //     solaceClient.subscribeToTopic(topic);
+    //
+    //     // Run a loop to continuously publish messages and receive them
+    //     int messageCount = 0;
+    //     nlohmann::json jsonObj = {
+    //         {"key1", "value1"},
+    //         {"key2", 42},
+    //         {"key3", true}
+    //     };
+    //
+    //     // Convert the JSON object to a string
+    //     std::string jsonString = jsonObj.dump();
+    //
+    //     while (messageCount < 100) {  // You can adjust the condition for the loop
+    //         // Create a new message
+    //         std::string message = "Hello from Solace! Message #" + std::to_string(messageCount);
+    //
+    //         // Publish the message
+    //         solaceClient.publishMessage(topic, message);
+    //
+    //         // Simulate a delay between message sends (e.g., 1 second)
+    //         std::this_thread::sleep_for(std::chrono::seconds(1));
+    //
+    //         // Increment the message count
+    //         messageCount++;
+    //     }
+    //
+    //     std::cout << "Finished sending messages." << std::endl;
+    //
+    //     // Keep the program running to receive messages (optional)
+    //     while (true) {
+    //         std::this_thread::sleep_for(std::chrono::seconds(10));
+    //     }
+    //
+    // } catch (const std::exception &e) {
+    //     std::cerr << "Exception: " << e.what() << std::endl;
+    // }
+
+    /*
+ Code demonstrates how to run multiple threads, each initializing and running a
+ separate adapter for a set of tickers.The configuration files and tickers for
+ each thread are stored in vectors. Based on a user-defined mode
+ (test mode or paper trading mode), each thread starts an adapter instance
+ with its respective configuration and ticker list. The threads are then joined to
+ ensure the main program waits for all threads to finish execution.
+ Additionally, an example is shown using an AlpacaAdapter to fetch the latest
+ stock tick for "TSLA" from the "iex" data source.
+
+    //add thread pool for handling many adapters, doing a manual approach for now
+    //(alpaca only allows one subscription (free), this will be used for other adapters)
+*/
+
+    // // Register signal handler
+    // signal(SIGINT, signalHandler);
+    // signal(SIGTERM, signalHandler);
+
+    // // Example for running multiples threads
+    // std::vector<std::string> configFiles = {
+    //     "../config/config.json",
+    //     "../config/config.json"// Add as many as you want
+    // };
+    //
+    // std::vector<std::vector<std::string>> tickersList = {
+    //     {"AAPL", "GOOG"},
+    //     {"MSFT", "TSLA"}
+    // };
+
+    // std::vector<std::string> configFiles = {
+    //     "../config/config.json"
+    // };
+    //
+    // std::vector<std::vector<std::string>> tickersList = {
+    //     {"AAPL", "GOOG"}
+    // };
+    //
+    // std::vector<std::thread> threads;
+    // // User selects mode
+    // bool testMode = true;
+    // cout << "Running in " << (testMode ? "Test Mode" : "Paper Trading Mode") << endl;
+    //
+    // // Create and start adapters in separate threads
+    // for (size_t i = 0; i < configFiles.size(); ++i) {
+    //     // Start each adapter in a separate thread
+    //     threads.emplace_back(runAdapter, configFiles[i], tickersList[i], testMode);
+    // }
+    //
+    // // Wait for all threads to finish (join them)
+    // for (auto& th : threads) {
+    //     if (th.joinable()) {
+    //         th.join();
+    //     }
+    // }
+
+    // AlpacaAdapter alpaca_adapter("../config/config.json");
+    // alpaca_adapter.initialize("../config/config.json");
+    // //
+    // string response2 = alpaca_adapter.getLatestTick("tsla", "iex") ;
+    // //
+    // cout << "" << endl;
+    // cout << response2 << endl;
+
+    return 0;
+}#include <fstream>
+#include <iostream>
+#include <curl/curl.h>
+#include <vector>
+#include <string>
+#include <boost/asio/ssl/context.hpp>
+#include <thread>
+
+#include "../include/Adapters/AlpacaAdapter.h"
+#include "../include/MarketDataGateway/MarketDataParser.h"
+
+using namespace std;
+
+AlpacaAdapter::AlpacaAdapter(const std::string& configFile) {
+    loadConfig(configFile);
+}
+
+AlpacaAdapter::~AlpacaAdapter() {
+    gracefulDisconnect();  // Ensure graceful shutdown on object destruction
+}
+
+void AlpacaAdapter::gracefulDisconnect() {
+    try {
+        std::lock_guard<std::mutex> guard(mtx);
+        if (con->get_state() == websocketpp::session::state::open) {
+            c.close(con->get_handle(), websocketpp::close::status::going_away, "Client disconnect");
+        }
+        std::cout << "WebSocket connection closed gracefully." << std::endl;
+    } catch (const std::exception &e) {
+        std::cerr << "Error during graceful disconnect: " << e.what() << std::endl;
+    }
+}
+
+void AlpacaAdapter::initialize(const std::string& configFile) {
+    // try {
+    //     loadConfig(configFile);
+    //     std::cout << "AlpacaAdapter initialized successfully." << std::endl;
+    // } catch (const std::exception &e) {
+    //     std::cerr << "Error initializing AlpacaAdapter: " << e.what() << std::endl;
+    // }
+}
+
+string AlpacaAdapter::getLatestTick(const std::string &symbol, const std::string &feed) {
+    try {
+        std::string url = dataUrl + "v2/stocks/quotes/latest?symbols=" + symbol + "&feed=" + feed;
+        std::cout << "Fetching market data for " << symbol << " from: " << url << std::endl;
+        return MarketDataParser::parseQuoteData(performRequest(url));
+    } catch (const std::exception &e) {
+        std::cerr << "Error fetching latest tick: " << e.what() << std::endl;
+        return "";
+    }
+}
+
+static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
+
+void AlpacaAdapter::subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) {
+    // websocket_client c;
+    c.get_alog().clear_channels(websocketpp::log::alevel::frame_header |
+        websocketpp::log::alevel::frame_payload |
+        websocketpp::log::alevel::control);
+
+    std::string url = testMode ? "wss://stream.data.alpaca.markets/v2/test" : "wss://stream.data.alpaca.markets/v2/stocks";
+
+    // Initialize WebSocket connection
+
+
+    try {
+        // websocketpp::lib::error_code ec;
+        // websocket_client::connection_ptr con = c.get_connection(url, ec);
+        try {
+            initializeWebSocketConnection(c, url);
+        } catch (std::exception &e)
+        {
+            std::cerr << "Error initializing websocket connection: " << e.what() << std::endl;
+        }
+
+        // Set message handler to handle incoming messages (only once)
+        c.set_open_handler(std::bind(&AlpacaAdapter::on_open, this, &c, std::placeholders::_1));
+        c.set_message_handler(std::bind(&AlpacaAdapter::on_message, this, &c, std::placeholders::_1, std::placeholders::_2));
+        c.set_close_handler(std::bind(&AlpacaAdapter::on_close, this, &c, std::placeholders::_1));
+        c.set_fail_handler(std::bind(&AlpacaAdapter::on_fail, this, &c, std::placeholders::_1));
+
+        websocketpp::lib::error_code ec;
+        websocket_client::connection_ptr con = c.get_connection(url, ec);
+
+        if (ec) {
+            std::cout << "Connection error: " << ec.message() << std::endl;
+        }
+
+        c.connect(con);
+
+        // WebSocket run in a separate thread
+        std::thread websocket_thread([this]() {
+            try {
+                c.run();
+            } catch (const std::exception &e) {
+                std::cerr << "[THREAD ERROR] WebSocket thread error: " << e.what() << std::endl;
+            }
+        });
+
+        // Main thread waits for WebSocket messages and handles subscription
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            // Sending subscription message
+            send_subscription(&c, con->get_handle());
+        }
+
+        websocket_thread.join();
+
+    } catch (const websocketpp::exception& e) {
+        std::cerr << "WebSocket exception: " << e.what() << std::endl;
+    } catch (const std::exception &e) {
+        std::cerr << "General exception: " << e.what() << std::endl;
+    }
+}
+
+std::string AlpacaAdapter::createOrder(const Order& order) {
+    std::cout << "Alpaca create order called" << std::endl;
+
+    // Build the JSON body for the order
+    nlohmann::json body = {
+        {"symbol", order.getInstrument()},       // Symbol or asset to trade
+        {"qty", std::to_string(order.getQuantity())}, // Quantity (number of shares/contracts)
+        {"side", order.getSide()},               // Buy or sell
+        {"type", order.getOrderType()},          // Order type (market, limit, stop, etc.)
+        {"time_in_force", order.getTimeInForce()} // Time in force (e.g., day, gtc, ioc)
+    };
+
+    // Handle optional fields based on the order type
+    if (order.getOrderType() == "limit" || order.getOrderType() == "stop_limit") {
+        if (order.getLimitPrice()) {
+            body["limit_price"] = std::to_string(order.getLimitPrice().value());
+        }
+    }
+
+    if (order.getOrderType() == "stop" || order.getOrderType() == "stop_limit") {
+        if (order.getStopPrice()) {
+            body["stop_price"] = std::to_string(order.getStopPrice().value());
+        }
+    }
+
+    if (order.getOrderType() == "trailing_stop") {
+        if (order.getTrailPrice()) {
+            body["trail_price"] = std::to_string(order.getTrailPrice().value());
+        }
+        if (order.getTrailPercent()) {
+            body["trail_percent"] = std::to_string(order.getTrailPercent().value());
+        }
+    }
+
+    // Optional extended hours field for limit and day order types
+    if (order.getTimeInForce() == "day" && (order.getOrderType() == "limit" || order.getOrderType() == "stop_limit")) {
+        body["extended_hours"] = order.isExtendedHours();
+    }
+
+    // Optional fields
+    if (!order.getClientOrderID().empty()) {
+        body["client_order_id"] = order.getClientOrderID();
+    }
+
+    if (!order.getOrderClass().empty()) {
+        body["order_class"] = order.getOrderClass();
+    }
+
+    // Print the constructed JSON for debugging
+    std::cout << "" << std::endl;
+    std::cout << "Constructed Alpaca order JSON: " << body.dump(4) << std::endl;
+
+    // Returning the constructed JSON as a string
+    return body.dump();
+}
+
+
+void AlpacaAdapter::loadConfig(const std::string &configFile) {
+    try {
+        std::ifstream file(configFile);
+        if (file.is_open()) {
+            nlohmann::json config;
+            file >> config;
+
+            // Load Alpaca config from the nested structure
+            apiKey = config["marketAdapter"]["alpacaAdapter"]["api_key"];
+            secretKey = config["marketAdapter"]["alpacaAdapter"]["api_secret"];
+            baseUrl = config["marketAdapter"]["alpacaAdapter"]["base_url"];
+            dataUrl = config["marketAdapter"]["alpacaAdapter"]["data_url"];
+            mode = config["marketAdapter"]["alpacaAdapter"]["mode"];
+            mode_options = config["marketAdapter"]["alpacaAdapter"]["mode_options"];
+
+            std::cout << "Alpaca config loaded successfully." << std::endl;
+            std::cout << "Available modes: " + mode_options << std::endl;
+            std::cout << "Change ../config/config.json for mode. Current mode: " + mode << std::endl;
+            std::cout << "" << std::endl;
+        } else {
+            throw std::runtime_error("Unable to open config file.");
+        }
+    } catch (const std::exception &e) {
+        std::cerr << "Error loading config: " << e.what() << std::endl;
+    }
+}
+
+string AlpacaAdapter::performRequest(const std::string &url) {
+    try {
+        CURL* hnd = curl_easy_init();
+        if (!hnd) {
+            throw std::runtime_error("CURL initialization failed");
+        }
+
+        std::string readBuffer;
+        curl_easy_setopt(hnd, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(hnd, CURLOPT_WRITEDATA, &readBuffer);
+
+        struct curl_slist* headers = nullptr;
+        headers = curl_slist_append(headers, "accept: application/json");
+        std::string apiKeyHeader = "APCA-API-KEY-ID: " + apiKey;
+        headers = curl_slist_append(headers, apiKeyHeader.c_str());
+        std::string apiSecretHeader = "APCA-API-SECRET-KEY: " + secretKey;
+        headers = curl_slist_append(headers, apiSecretHeader.c_str());
+
+        curl_easy_setopt(hnd, CURLOPT_HTTPHEADER, headers);
+
+        CURLcode res = curl_easy_perform(hnd);
+
+        if (res != CURLE_OK) {
+            throw std::runtime_error(curl_easy_strerror(res));
+        }
+
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(hnd);
+
+        return readBuffer;
+
+    } catch (const std::exception &e) {
+        std::cerr << "Error performing request: " << e.what() << std::endl;
+        return "";
+    }
+}
+
+void AlpacaAdapter::on_message(websocket_client* c, websocketpp::connection_hdl hdl, websocket_client::message_ptr msg) {
+    std::lock_guard<std::mutex> guard(mtx);
+    std::cout << "< Received message: " << msg->get_payload() << std::endl;
+    std::cout << "" << std::endl;
+}
+
+void AlpacaAdapter::on_open(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::cout << "Connected to WebSocket server!" << std::endl;
+    AlpacaAdapter::send_auth(c, hdl);
+}
+
+void AlpacaAdapter::on_close(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::cout << "Connection closed!" << std::endl;
+}
+
+void AlpacaAdapter::on_fail(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::cout << "Connection failed!" << std::endl;
+}
+
+void AlpacaAdapter::sendMessage(websocket_client* c, connection_hdl hdl, const nlohmann::json& message) {
+    try {
+        std::string payload = message.dump();
+        c->send(hdl, payload, websocketpp::frame::opcode::text);
+    } catch (const std::exception &e) {
+        std::cerr << "Error sending WebSocket message: " << e.what() << std::endl;
+    }
+}
+
+void AlpacaAdapter::send_auth(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::string auth_msg = R"({"action":"auth","key":")" + apiKey + R"(","secret":")" + secretKey + R"("})";
+    c->send(hdl, auth_msg, websocketpp::frame::opcode::text);
+    // std::cout << "> Auth message: " << auth_msg << std::endl;
+}
+
+void AlpacaAdapter::send_subscription(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::string sub_msg = R"({"action":"subscribe","bars":["FAKEPACA"],"quotes":["FAKEPACA"]})";
+    c->send(hdl, sub_msg, websocketpp::frame::opcode::text);
+    std::cout << "> Subscription message: " << sub_msg << std::endl;
+}
+
+std::string AlpacaAdapter::buildAuthMessage() {
+    nlohmann::json auth_message = {
+        {"action", "auth"},
+        {"key", apiKey},
+        {"secret", secretKey}
+    };
+    return auth_message.dump();
+}
+
+std::string AlpacaAdapter::buildSubscriptionMessage(const std::vector<std::string>& tickers) {
+    nlohmann::json subscribe_message = {
+        {"action", "subscribe"},
+        {"bars", tickers},  // Subscribe to bars
+        {"quotes", tickers}   // Optionally subscribe to quotes too
+    };
+    return subscribe_message.dump();
+}
+
+void AlpacaAdapter::initializeWebSocketConnection(websocket_client& c, const std::string& url) {
+    c.init_asio();
+
+    // Set TLS initialization callback
+    c.set_tls_init_handler([](websocketpp::connection_hdl) -> websocketpp::lib::shared_ptr<boost::asio::ssl::context> {
+        try {
+            auto ctx = websocketpp::lib::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::sslv23);
+            ctx->set_default_verify_paths();
+            return ctx;
+        } catch (const std::exception &e) {
+            std::cerr << "TLS initialization error: " << e.what() << std::endl;
+            return nullptr;  // Return null on error
+        }
+    });
+}
+//
+// Created by Admin on 1/10/2024.
+//
+//
+// Created by Admin on 3/9/2024.
+//
+// Standard and external library includes
+#include <fstream>
+#include <iostream>
+#include <curl/curl.h>
+#include "nlohmann/json.hpp"
+#include "../include/MarketDataGateway/MarketDataGateway.h"
+// Windows headers
+#ifdef _WIN32
+    // #define NOMINMAX
+    #include <windows.h>
+#endif
+
+// Constructor
+MarketDataGateway::MarketDataGateway() {}
+
+// Initialize the gateway with API keys from the config file
+void MarketDataGateway::initialize(const std::string& configFile) {
+    loadConfig(configFile);
+}
+
+// Load configuration from JSON file
+void MarketDataGateway::loadConfig(const std::string& configFile) {
+    std::ifstream file(configFile);
+    if (file.is_open()) {
+        nlohmann::json config;
+        file >> config;
+        apiKey = config["api_key"];
+        // cout << "API Key: " << apiKey << endl;
+        secretKey = config["api_secret"];
+        // cout << "API Secret: " << secretKey << endl;
+        baseUrl = config["base_url"];
+        // cout << "Base URL: " << baseUrl << endl;
+        dataUrl = config["data_url"];
+        // cout << "Data URL: " << dataUrl << endl;
+    } else {
+        std::cerr << "Unable to open config file" << std::endl;
+    }
+}
+
+// Callback function to capture CURL response data
+static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
+
+// Get market data for a given symbol
+std::string MarketDataGateway::getMarketData(const std::string& symbol,const string& feed) {
+    CURL *hnd = curl_easy_init();
+    if (!hnd) {
+        return "CURL initialization failed";
+    }
+
+    std::string readBuffer;
+    std::string url = dataUrl + "v2/stocks/quotes/latest?symbols=" + symbol + "&feed=" + feed;
+    cout << url << endl;
+
+    curl_easy_setopt(hnd, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, WriteCallback);  // Set callback function
+    curl_easy_setopt(hnd, CURLOPT_WRITEDATA, &readBuffer);  // Pass the string to store data
+
+    // Prepare headers
+    struct curl_slist *headers = NULL;
+    headers = curl_slist_append(headers, "accept: application/json");
+    std::string apiKeyHeader = "APCA-API-KEY-ID: " + apiKey;
+    headers = curl_slist_append(headers, apiKeyHeader.c_str());
+    std::string apiSecretHeader = "APCA-API-SECRET-KEY: " + secretKey;
+    headers = curl_slist_append(headers, apiSecretHeader.c_str());
+
+    curl_easy_setopt(hnd, CURLOPT_HTTPHEADER, headers);
+
+    // Perform the request
+    CURLcode res = curl_easy_perform(hnd);
+
+    // Check for errors
+    if (res != CURLE_OK) {
+        std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+    }
+
+    // Clean up
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(hnd);
+
+    return readBuffer;  // Return the result
+}
+
+std::string MarketDataGateway::getLatestQuotes(const std::string& symbol, const string& feed) {
+    CURL* hnd = curl_easy_init();
+    if (!hnd) {
+        return "CURL initialization failed";
+    }
+
+    std::string readBuffer;
+    std::string url = dataUrl + "v2/stocks/quotes/latest?symbols=" + symbol;
+    if (!feed.empty()) {
+        url += "&feed=" + feed;
+    }
+    std::cout << "Fetching latest quotes for " << symbol << " from: " << url << std::endl;
+
+    curl_easy_setopt(hnd, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(hnd, CURLOPT_WRITEDATA, &readBuffer);
+
+    // Prepare headers
+    struct curl_slist* headers = NULL;
+    headers = curl_slist_append(headers, "accept: application/json");
+    std::string apiKeyHeader = "APCA-API-KEY-ID: " + apiKey;
+    headers = curl_slist_append(headers, apiKeyHeader.c_str());
+    std::string apiSecretHeader = "APCA-API-SECRET-KEY: " + secretKey;
+    headers = curl_slist_append(headers, apiSecretHeader.c_str());
+
+    curl_easy_setopt(hnd, CURLOPT_HTTPHEADER, headers);
+
+    // Perform the request
+    CURLcode res = curl_easy_perform(hnd);
+
+    // Check for errors
+    if (res != CURLE_OK) {
+        std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+    }
+
+    // Clean up
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(hnd);
+
+    MarketDataParser::parseQuoteData(readBuffer);  // Parse and print the response
+
+    return readBuffer;  // Return the raw response
+}
+//
+// Created by Admin on 26/9/2024.
+//
+#include "../../include/MarketDataGateway/MarketDataParser.h"
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <ctime>
+
+// Helper function to print bars
+void MarketDataParser::printBar(const nlohmann::json& bar) {
+    if (bar.contains("open") && bar.contains("high") && bar.contains("low") && bar.contains("close") && bar.contains("volume")) {
+        std::cout << "Open: " << bar["open"] << ", High: " << bar["high"]
+                  << ", Low: " << bar["low"] << ", Close: " << bar["close"]
+                  << ", Volume: " << bar["volume"] << std::endl;
+    } else {
+        std::cerr << "Invalid Bar Data!" << std::endl;
+    }
+}
+
+// Helper function to print quotes
+std::string MarketDataParser::printQuote(const nlohmann::json& quote) {
+    if (quote.contains("bp")
+        && quote.contains("ap")
+        && quote.contains("bs")
+        && quote.contains("as")
+        && quote.contains("t")) {
+
+        std::ostringstream oss;
+        oss << "Bid Price: " << quote["bp"] << ", Bid Size: " << quote["bs"]
+            << ", Ask Price: " << quote["ap"] << ", Ask Size: " << quote["as"] <<", Date and Time: "<< convertISO8601(quote["t"]);
+        return oss.str();
+    } else {
+        std::cerr << "Invalid Quote Data!" << std::endl;
+        return "";
+    }
+}
+
+// Helper function to print trades
+void MarketDataParser::printTrade(const nlohmann::json& trade) {
+    if (trade.contains("price") && trade.contains("size") && trade.contains("timestamp")) {
+        std::cout << "Trade Price: " << trade["price"] << ", Size: " << trade["size"]
+                  << ", Timestamp: " << trade["timestamp"] << std::endl;
+    } else {
+        std::cerr << "Invalid Trade Data!" << std::endl;
+    }
+}
+
+// Helper function to print snapshots (combination of trades and quotes)
+void MarketDataParser::printSnapshot(const nlohmann::json& snapshot) {
+    if (snapshot.contains("latest_trade") && snapshot.contains("latest_quote")) {
+        std::cout << "Snapshot - Latest Trade and Quote:" << std::endl;
+        std::cout << "Latest Trade: ";
+        printTrade(snapshot["latest_trade"]);
+        std::cout << "Latest Quote: ";
+        printQuote(snapshot["latest_quote"]);
+    } else {
+        std::cerr << "Invalid Snapshot Data!" << std::endl;
+    }
+}
+
+// Parse Bar Data (OHLCV)
+void MarketDataParser::parseBarData(const std::string& jsonResponse) {
+    try {
+        nlohmann::json data = nlohmann::json::parse(jsonResponse);
+        if (data.contains("bar")) {
+            printBar(data["bar"]);
+        } else if (data.contains("bars")) {
+            for (const auto& bar : data["bars"]) {
+                printBar(bar);
+            }
+        } else {
+            std::cerr << "No bar data found!" << std::endl;
+        }
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+    }
+}
+
+// Parse Quote Data (Bid/Ask)
+std::string MarketDataParser::parseQuoteData(const std::string& jsonResponse) {
+    try {
+        std::cout << jsonResponse << std::endl;
+        nlohmann::json data = nlohmann::json::parse(jsonResponse);
+
+        // To collect all output in case there are multiple quotes
+        std::string result;
+
+        if (data.contains("quote")) {
+            // If there's a single quote
+            result = printQuote(data["quote"]);
+        } else if (data.contains("quotes")) {
+            // If there are multiple quotes, iterate through each
+            for (const auto& [symbol, quote] : data["quotes"].items()) {
+                result += "Symbol: " + symbol + "\n";
+                result += printQuote(quote) + "\n";
+            }
+        } else {
+            std::cerr << "No quote data found!" << std::endl;
+            return "";
+        }
+
+        return result;
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+        return "";
+    }
+}
+
+// Parse Trade Data
+void MarketDataParser::parseTradeData(const std::string& jsonResponse) {
+    try {
+        nlohmann::json data = nlohmann::json::parse(jsonResponse);
+        if (data.contains("trade")) {
+            printTrade(data["trade"]);
+        } else if (data.contains("trades")) {
+            for (const auto& [symbol, trade] : data["trades"].items()) {
+                std::cout << "Symbol: " << symbol << std::endl;
+                printTrade(trade);
+            }
+        } else {
+            std::cerr << "No trade data found!" << std::endl;
+        }
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+    }
+}
+
+// Parse Snapshot Data
+void MarketDataParser::parseSnapshotData(const std::string& jsonResponse) {
+    try {
+        nlohmann::json data = nlohmann::json::parse(jsonResponse);
+        if (data.contains("snapshot")) {
+            printSnapshot(data["snapshot"]);
+        } else if (data.contains("snapshots")) {
+            for (const auto& [symbol, snapshot] : data["snapshots"].items()) {
+                std::cout << "Symbol: " << symbol << std::endl;
+                printSnapshot(snapshot);
+            }
+        } else {
+            std::cerr << "No snapshot data found!" << std::endl;
+        }
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+    }
+}
+
+std::string MarketDataParser::convertISO8601(const std::string &date) {
+    // Extract the date and time part from the ISO 8601 string
+    std::tm tm = {};
+    std::istringstream ss(date.substr(0, 19)); // Take only the first part, excluding fractional seconds and 'Z'
+
+    // Parse the string to fill the tm structure
+    ss >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%S");
+
+    if (ss.fail()) {
+        return "Failed to parse time";
+    }
+
+    // Convert to time_t (time since epoch)
+    std::time_t time = std::mktime(&tm);
+
+    // Format the time to a readable string
+    std::ostringstream result;
+    result << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+
+    return result.str();
+}
+
+//
+// Created by Admin on 20/10/2024.
+//
+
+#include "../include/orderGateway/OMS.h"
+#include "../include/Adapters/AlpacaAdapter.h"
+
+
+// Initialize available adapters
+void OrderManagementSystem::initializeAdapters() {
+    // Initialize AlpacaAdapter
+    std::string alpacaConfigFile = "../config/config.json";
+    AlpacaAdapter* alpacaAdapter = new AlpacaAdapter(alpacaConfigFile);
+    OMSadapters[AdapterEnum::Alpaca] = alpacaAdapter;  // Store with enum key
+
+    // // Initialize IBKRAdapter (example)
+    // std::string ibkrConfigFile = "../config/ibkr_config.json";
+    // IBKRAdapter* ibkrAdapter = new IBKRAdapter(ibkrConfigFile);
+    // OMSadapters[AdapterEnum::IBKR] = ibkrAdapter;  // Store with enum key
+
+    std::cout << "Adapters registered with OMS." << std::endl;
+}
+
+// Helper method to get the correct adapter based on the AdapterEnum
+GenericAdapter* OrderManagementSystem::getAdapter(AdapterEnum adapterType) {
+    auto it = OMSadapters.find(adapterType);  // Find by AdapterEnum key
+    if (it != OMSadapters.end()) {
+        return it->second;  // Return the found adapter
+    } else {
+        std::cerr << "Error: Adapter not found for the given type!" << std::endl;
+        return nullptr;
+    }
+}
+
+// Submit an order through the selected adapter
+void OrderManagementSystem::submitOrder(const Order& order, AdapterEnum adapterType) {
+    std::cout << "OMS submit order called" << std::endl;
+
+    // Use the getAdapter method to get the appropriate adapter
+    GenericAdapter* adapter = getAdapter(adapterType);
+    if (adapter) {
+        adapter->createOrder(order);  // Call createOrder on the adapter
+        std::cout << "Order submitted successfully." << std::endl;
+    } else {
+        std::cerr << "Error: Could not submit order, adapter not found or invalid." << std::endl;
+    }
+}
+#include "../include/orderGateway/Order.h"
+#include <iostream>
+#include <stdexcept>
+#include <map>
+
+// Constructor implementation
+Order::Order(const std::string& clientOrderID,
+    const std::string& instrument,
+    Side side, double quantity,
+    OrderType type,
+    TimeInForce timeInForce,
+    const std::string& exchange)
+    : clientOrderID(clientOrderID),
+instrument(instrument),
+side(side),
+quantity(quantity),
+type(type),
+timeInForce(timeInForce),
+exchange(exchange) {
+
+    // Validation for required parameters
+    if (quantity <= 0) {
+        throw std::invalid_argument("Quantity must be greater than zero.");
+    }
+    if (!isValidOrderType(type)) {
+        throw std::invalid_argument("Invalid order type.");
+    }
+    if (!isValidSide(side)) {
+        throw std::invalid_argument("Invalid side.");
+    }
+    if (!isValidTimeInForce(timeInForce)) {
+        throw std::invalid_argument("Invalid time-in-force.");
+    }
+}
+
+// Getters
+std::string Order::getInstrument() const {
+    return instrument;
+}
+
+std::string Order::getSide() const {
+    return side == Side::Buy ? "buy" : "sell";
+}
+
+std::string Order::getOrderType() const {
+    static std::map<OrderType, std::string> orderTypeMap = {
+        { OrderType::Market, "market" },
+        { OrderType::Limit, "limit" },
+        { OrderType::Stop, "stop" },
+        { OrderType::StopLimit, "stop_limit" },
+        { OrderType::TrailingStop, "trailing_stop" }
+    };
+    return orderTypeMap[type];
+}
+
+double Order::getQuantity() const {
+    return quantity;
+}
+
+std::string Order::getExchange() const {
+    return exchange;
+}
+
+std::string Order::getTimeInForce() const {
+    static std::map<TimeInForce, std::string> tifMap = {
+        { TimeInForce::Day, "day" },
+        { TimeInForce::GTC, "gtc" },
+        { TimeInForce::OPG, "opg" },
+        { TimeInForce::CLS, "cls" },
+        { TimeInForce::IOC, "ioc" },
+        { TimeInForce::FOK, "fok" }
+    };
+    return tifMap[timeInForce];
+}
+
+std::optional<double> Order::getLimitPrice() const {
+    return limitPrice;
+}
+
+std::optional<double> Order::getStopPrice() const {
+    return stopPrice;
+}
+
+std::optional<double> Order::getTrailPrice() const {
+    return trailPrice;
+}
+
+std::optional<double> Order::getTrailPercent() const {
+    return trailPercent;
+}
+
+bool Order::isExtendedHours() const {
+    return extendedHours;
+}
+
+std::string Order::getClientOrderID() const {
+    return clientOrderID;
+}
+
+std::string Order::getOrderClass() const {
+    return orderClass;
+}
+
+// Setters for optional fields
+void Order::setLimitPrice(double price) {
+    limitPrice = price;
+}
+
+void Order::setStopPrice(double price) {
+    stopPrice = price;
+}
+
+void Order::setTrailPrice(double price) {
+    trailPrice = price;
+}
+
+void Order::setTrailPercent(double percent) {
+    trailPercent = percent;
+}
+
+void Order::setExtendedHours(bool extended) {
+    extendedHours = extended;
+}
+
+// void Order::setClientOrderID(const std::string& orderId) {
+//     clientOrderID = orderId;
+// }
+
+void Order::setOrderClass(const std::string& orderClass) {
+    this->orderClass = orderClass;
+}
+
+// Validation functions
+bool Order::isValidOrderType(const OrderType type) {
+    return type == OrderType::Market || type == OrderType::Limit || type == OrderType::Stop || type == OrderType::StopLimit || type == OrderType::TrailingStop;
+}
+
+bool Order::isValidSide(const Side side) {
+    return side == Side::Buy || side == Side::Sell;
+}
+
+bool Order::isValidTimeInForce(const TimeInForce timeInForce) {
+    return timeInForce == TimeInForce::Day || timeInForce == TimeInForce::GTC || timeInForce == TimeInForce::OPG || timeInForce == TimeInForce::CLS || timeInForce == TimeInForce::IOC || timeInForce == TimeInForce::FOK;
+}
+#include "../include/solace/solaceLib.h"
+#include <iostream>
+#include <fstream>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+solaceLib::solaceLib(const std::string& configFilePath) {
+    // Initialize Solace API
+    solClient_initialize(SOLCLIENT_LOG_DEFAULT_FILTER, NULL);
+
+    // Load configuration from the provided config file
+    loadConfig(configFilePath);
+
+    // Create and connect the Solace session
+    createSession();
+}
+
+solaceLib::~solaceLib() {
+    // Clean up the Solace session and context
+    if (session) {
+        solClient_session_disconnect(session);
+        solClient_session_destroy(&session);
+    }
+    if (context) {
+        solClient_context_destroy(&context);
+    }
+    solClient_cleanup();
+}
+
+void solaceLib::loadConfig(const std::string& configFilePath) {
+    std::ifstream configFile(configFilePath);
+    if (!configFile.is_open()) {
+        throw std::runtime_error("Failed to open config file: " + configFilePath);
+    }
+
+    json configJson;
+    configFile >> configJson;
+
+    // Navigate through the nested structure to load Solace configurations
+    host = configJson["solace"]["solaceLib"]["host"].get<std::string>();
+    vpn = configJson["solace"]["solaceLib"]["vpn"].get<std::string>();
+    username = configJson["solace"]["solaceLib"]["username"].get<std::string>();
+    password = configJson["solace"]["solaceLib"]["password"].get<std::string>();
+    trustStoreDir = configJson["solace"]["solaceLib"]["trustStoreDir"].get<std::string>();
+}
+
+void solaceLib::createSession() {
+    // Define session properties (connection details from loaded config)
+    const char* sessionProps[] = {
+        SOLCLIENT_SESSION_PROP_HOST, host.c_str(),
+        SOLCLIENT_SESSION_PROP_VPN_NAME, vpn.c_str(),
+        SOLCLIENT_SESSION_PROP_USERNAME, username.c_str(),
+        SOLCLIENT_SESSION_PROP_PASSWORD, password.c_str(),
+        SOLCLIENT_SESSION_PROP_SSL_TRUST_STORE_DIR, trustStoreDir.c_str(),
+        SOLCLIENT_SESSION_PROP_CONNECT_BLOCKING, SOLCLIENT_PROP_ENABLE_VAL,
+        NULL
+    };
+
+    // Initialize the context function information
+    solClient_context_createFuncInfo_t contextFuncInfo = SOLCLIENT_CONTEXT_CREATEFUNC_INITIALIZER;
+
+    // Create a context with function info
+    solClient_returnCode_t rc = solClient_context_create(SOLCLIENT_CONTEXT_PROPS_DEFAULT_WITH_CREATE_THREAD, &context, &contextFuncInfo, sizeof(contextFuncInfo));
+
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to create Solace context: " + std::string(solClient_returnCodeToString(rc)));
+    }
+
+    // Set up session callback information
+    solClient_session_createFuncInfo_t sessionFuncInfo = SOLCLIENT_SESSION_CREATEFUNC_INITIALIZER;
+    sessionFuncInfo.rxMsgInfo.callback_p = messageReceiveCallback;
+    sessionFuncInfo.rxMsgInfo.user_p = this;
+    sessionFuncInfo.eventInfo.callback_p = sessionEventCallback;  // This will be corrected to return void
+    sessionFuncInfo.eventInfo.user_p = this;
+
+    // Cast sessionProps to match the expected property array type
+    rc = solClient_session_create((solClient_propertyArray_pt)sessionProps, context, &session, &sessionFuncInfo, sizeof(sessionFuncInfo));
+
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to create Solace session: " + std::string(solClient_returnCodeToString(rc)));
+    }
+
+    // Connect the session
+    rc = solClient_session_connect(session);
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to connect to Solace broker.");
+    }
+}
+
+
+void solaceLib::publishMessage(const std::string& topic, const std::string& message) {
+    // Create a message
+    solClient_opaqueMsg_pt msg;
+    solClient_msg_alloc(&msg);
+    solClient_msg_setDeliveryMode(msg, SOLCLIENT_DELIVERY_MODE_DIRECT);
+    solClient_msg_setBinaryAttachmentString(msg, message.c_str());
+
+    // Set the destination (topic)
+    solClient_destination_t destination;
+    destination.destType = SOLCLIENT_TOPIC_DESTINATION;
+    destination.dest = topic.c_str();
+    solClient_msg_setDestination(msg, &destination, sizeof(destination));
+
+    // Publish the message
+    solClient_returnCode_t rc = solClient_session_sendMsg(session, msg);
+    if (rc != SOLCLIENT_OK) {
+        std::cerr << "Failed to send message." << std::endl;
+    } else {
+        std::cout << "Message sent successfully to topic: " << topic << std::endl;
+    }
+
+    // Cleanup
+    solClient_msg_free(&msg);
+}
+
+void solaceLib::subscribeToTopic(const std::string& topic) {
+    // Subscribe to the topic
+    solClient_returnCode_t rc = solClient_session_topicSubscribeExt(session, SOLCLIENT_SUBSCRIBE_FLAGS_WAITFORCONFIRM, topic.c_str());
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to subscribe to topic: " + topic);
+    }
+    std::cout << "Subscribed to topic: " << topic << std::endl;
+}
+
+solClient_rxMsgCallback_returnCode_t solaceLib::messageReceiveCallback(solClient_opaqueSession_pt session_p, solClient_opaqueMsg_pt msg_p, void *user_p) {
+    void* msgText;  // Changed to void* for proper type matching
+    solClient_uint32_t msgSize;
+    solClient_msg_getBinaryAttachmentPtr(msg_p, (solClient_opaquePointer_pt)&msgText, &msgSize);  // Corrected cast
+    std::cout << "Received message: " << std::string((char*)msgText, msgSize) << std::endl;
+    return SOLCLIENT_CALLBACK_OK;
+}
+
+// Fix: Changed the return type of sessionEventCallback to void
+void solaceLib::sessionEventCallback(solClient_opaqueSession_pt session_p, solClient_session_eventCallbackInfo_pt eventInfo_p, void* user_p) {
+    std::cout << "Received session event: " << solClient_session_eventToString(eventInfo_p->sessionEvent) << std::endl;
+}
