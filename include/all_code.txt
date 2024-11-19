@@ -1,0 +1,443 @@
+// Created by Admin on 1/10/2024.
+//
+
+#ifndef ALPACAADAPTER_H
+#define ALPACAADAPTER_H
+#include <string>
+#include <vector>
+
+#include "../interface/GenericAdapter.h"
+#include <nlohmann/json.hpp>
+#include <websocketpp/config/asio_client.hpp>  // for TLS connection
+#include <websocketpp/client.hpp>
+#include <orderGateway/Order.h>
+
+
+typedef websocketpp::client<websocketpp::config::asio_tls_client> websocket_client;
+typedef websocketpp::connection_hdl connection_hdl;
+
+class AlpacaAdapter : public GenericAdapter {
+public:
+    // Constructor
+    AlpacaAdapter(const std::string& configFile);
+
+    // Destructor
+    ~AlpacaAdapter();
+
+    // Config parameters
+    void initialize(const std::string& configFile) override;
+
+    //Single json request
+    std::string getLatestTick(const std::string &symbol, const std::string &feed) override;
+
+    // Websocket live data
+    void subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) override;
+
+    //create order
+    std::string createOrder(const Order& order);
+
+    // Graceful disconnect method
+    void gracefulDisconnect();
+
+private:
+    // Config parameters
+    void loadConfig(const std::string& configFile);
+    std::string apiKey;
+    std::string secretKey;
+    std::string baseUrl;
+    std::string dataUrl;
+    std::string mode;
+    std::string mode_options;
+    std::mutex mtx;
+
+    bool isAuthenticated = false;
+
+    //Single json request
+    std::string performRequest(const std::string& url);
+
+    // Websocket live data
+    websocket_client c;
+    websocketpp::client<websocketpp::config::asio_tls_client>::connection_ptr con;
+
+    void initializeWebSocketConnection(websocket_client& c, const std::string& url);
+
+    std::string buildAuthMessage();
+    std::string buildSubscriptionMessage(const std::vector<std::string>& tickers);
+    void sendMessage(websocket_client* c, websocketpp::connection_hdl hdl, const nlohmann::json& message);
+    void send_auth(websocket_client* c, websocketpp::connection_hdl hdl);
+    void send_subscription(websocket_client* c, websocketpp::connection_hdl hdl);
+
+    void on_message(websocket_client* c, websocketpp::connection_hdl hdl, websocket_client::message_ptr msg);
+    void on_open(websocket_client* c, websocketpp::connection_hdl hdl);
+    void on_close(websocket_client* c, websocketpp::connection_hdl hdl);
+    void on_fail(websocket_client* c, websocketpp::connection_hdl hdl);
+};
+
+
+#endif //ALPACAADAPTER_H#ifndef ADAPTERENUM_H
+#define ADAPTERENUM_H
+
+// Enum for representing different adapter types
+enum class AdapterEnum {
+  Alpaca,
+  IBKR,
+  Binance
+    // Add other adapters as needed
+};
+
+#endif // ADAPTERENUM_H
+//
+// Created by Admin on 1/10/2024.
+//
+
+#ifndef GENERICADAPTER_H
+#define GENERICADAPTER_H
+
+#include <string>
+#include <vector>
+#include "../include/orderGateway/Order.h"
+#include <iostream>
+
+class GenericAdapter {
+public:
+    // Virtual destructor to allow proper cleanup
+    virtual ~GenericAdapter() = default;
+
+    // Initialization (pure virtual, as all adapters need this)
+    virtual void initialize(const std::string& configFile) = 0;
+
+    // Get latest tick data (optional, may not be implemented by all adapters)
+    virtual std::string getLatestTick(const std::string& symbol, const std::string& feed) {
+        return "getLatestTick() is not supported or not implemented by this adapter.";
+    }
+
+    // Subscribe to live market data (optional, may not be implemented by all adapters)
+    virtual void subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) {
+        std::cerr << "subscribeLiveData() is not supported or not implemented by this adapter." << std::endl;
+    }
+
+    // Order creation (optional, may not be implemented by all adapters)
+    virtual std::string createOrder(const Order& order) {
+        std::cerr << "createOrder() is not supported or not implemented by this adapter." << std::endl;
+        return "";
+    }
+
+    // Historical data retrieval (optional, may not be implemented by all adapters)
+    virtual void getHistoricalData(const std::string& symbol, int startTimeDate, int endStartDate) {
+        std::cerr << "getHistoricalData() is not supported or not implemented by this adapter." << std::endl;
+    }
+
+    // // Sending orders (optional, may not be implemented by all adapters)
+    // virtual void sendOrder() {
+    //     std::cerr << "sendOrder() is not supported or not implemented by this adapter." << std::endl;
+    // }
+    //
+    // // Order management methods (optional, may not be implemented by all adapters)
+    // virtual void orderManagementMethod() {
+    //     std::cerr << "orderManagementMethod() is not supported or not implemented by this adapter." << std::endl;
+    // }
+    //
+    // // Solace-related methods (optional, may not be implemented by all adapters)
+    // virtual void publisherToTopic() {
+    //     std::cerr << "publisherToTopic() is not supported or not implemented by this adapter." << std::endl;
+    // }
+    //
+    // virtual void subscribeToTopic() {
+    //     std::cerr << "subscribeToTopic() is not supported or not implemented by this adapter." << std::endl;
+    // }
+};
+
+#endif //GENERICADAPTER_H
+//
+// Created by Admin on 3/9/2024.
+//
+
+#ifndef MARKETDATA_GATEWAY_H
+#define MARKETDATA_GATEWAY_H
+
+#include <string>
+#include "MarketDataParser.h"
+
+using namespace std;
+// class MarketDataGatewayTest;
+
+class MarketDataGateway {
+public:
+    MarketDataGateway();
+    void initialize(const std::string& configFile);
+    string getMarketData(const std::string& symbol, const string& feed);
+    string getLatestQuotes(const std::string& symbol,const string& feed);
+
+
+private:
+    std::string apiKey;
+    std::string secretKey;
+    std::string baseUrl;
+    std::string dataUrl;
+
+    void loadConfig(const std::string& configFile);
+    // friend class MarketDataGatewayTest;
+};
+
+#endif // MARKETDATA_GATEWAY_H
+#ifndef MARKETDATA_PARSER_H
+#define MARKETDATA_PARSER_H
+
+#include <string>
+#include <nlohmann/json.hpp>
+
+class MarketDataParser {
+public:
+    // Static methods for parsing different response types
+    static void parseBarData(const std::string& jsonResponse);
+    static std::string parseQuoteData(const std::string& jsonResponse);
+    static void parseTradeData(const std::string& jsonResponse);
+    static void parseSnapshotData(const std::string& jsonResponse);
+
+private:
+    static void printBar(const nlohmann::json& bar);
+    static std::string printQuote(const nlohmann::json& quote);
+    static void printTrade(const nlohmann::json& trade);
+    static void printSnapshot(const nlohmann::json& snapshot);
+    static std::string convertISO8601(const std::string& date);
+};
+
+#endif // MARKETDATA_PARSER_H
+#ifndef ORDERMANAGEMENTSYSTEM_H
+#define ORDERMANAGEMENTSYSTEM_H
+
+#include <string>
+#include <map>
+#include <vector>
+#include <thread>
+#include <functional>
+#include "../include/orderGateway/OMS.h"
+#include "../include/orderGateway/Order.h"
+#include "../interface/GenericAdapter.h" // Base class for different adapters (IBKRAdapter, AlpacaAdapter, etc.)
+#include <interface/AdapterEnum.h>
+
+class OrderManagementSystem {
+public:
+    // Constructor and Destructor
+    // OrderManagementSystem();
+    // ~OrderManagementSystem();
+
+    // Function to initialize and register adapters
+    void initializeAdapters();
+    //
+    // // Event Listener for orders (listens to Solace topics)
+    // void listenForOrders();
+    //
+    // // Function to process incoming orders concurrently
+    // void processOrderConcurrently(const Order& order);
+
+    // Function to generate a unique order ID
+    // std::string generateOrderID(const std::string& instrumentSymbol, const std::string& orderType, const std::string& teId);
+    //
+    // // Function to submit a new order (calls the relevant adapter)
+    void submitOrder(const Order& order, AdapterEnum adapterType);
+    //
+    // // Function to cancel an existing order
+    // void cancelOrder(const std::string& orderId);
+
+    // // Function to modify an existing order
+    // void modifyOrder(const std::string& orderId, const Order& modifiedOrder);
+    //
+    // // Function to handle partial fills and track remaining quantity
+    // void handlePartialFill(const std::string& orderId, double filledQuantity);
+    //
+    // // Function to select the optimal adapter based on the order details
+    // Adapter* selectOptimalAdapter(const Order& order);
+    //
+    // // Function to handle real-time portfolio updates
+    // void updatePortfolio(const std::string& instrument, double quantity, double price);
+    //
+    // // Function to calculate real-time PnL for the current portfolio
+    // double calculatePnL(const std::string& instrument);
+    //
+    // // Function to fetch real-time or historical market data
+    // std::vector<double> fetchMarketData(const std::string& instrument, const std::string& timeframe, const std::string& dataType);
+    //
+    // // Function to retrieve current portfolio details
+    // std::map<std::string, double> getPortfolio();
+    //
+    // // Function to set and check risk management rules
+    // void setRiskManagement(double maxExposure, double maxLoss);
+    // bool checkRiskLimits(const Order& order);
+    //
+    // // Function to reject excess orders if risk limits or quantities are exceeded
+    // bool rejectExcessOrders(const Order& order);
+    //
+    // // Function to log order, trade, and cancellation details for compliance and audit
+    // void logTradeData(const Order& order, const std::string& status);
+    //
+    // // Smart Order Routing (SOR) - Function to optimize order routing
+    // void optimizeOrderRouting(const Order& order);
+    //
+    // // Function to maintain audit trails for compliance
+    // void auditTrail(const Order& order, const std::string& action);
+    //
+    // // Real-time risk management function
+    // void performRealTimeRiskCheck(const Order& order);
+    //
+    // // Mass cancel all active orders (kill switch)
+    // void cancelAllOrders();
+    //
+    // // Handle execution reports (update order status, send to trading engine)
+    // void handleExecutionReport(const std::string& orderId, const std::string& status, double filledQuantity, double remainingQuantity);
+    //
+    // // Notify Trading Engine of portfolio changes
+    // void notifyTEPortfolioUpdate();
+
+private:
+    // Map to store multiple adapters for different brokers
+    std::map<AdapterEnum, GenericAdapter*> OMSadapters;
+
+    // Portfolio details: instrument -> quantity
+    // std::map<std::string, double> portfolio;
+
+    // PnL details: instrument -> PnL value
+    // std::map<std::string, double> pnl;
+
+    // Risk management parameters
+    // double maxExposure;
+    // double maxLoss;
+
+    // Helper function to route orders to the correct adapter
+    // void routeOrderToAdapter(const Order& order, Adapter* adapter);
+
+    // Map to track order status
+    std::map<std::string, Order> activeOrders;
+
+    GenericAdapter* getAdapter(AdapterEnum adapterType);
+
+    // Function to update order status (e.g., Partially Filled, Filled, Cancelled)
+    // void updateOrderStatus(const std::string& orderId, const std::string& status);
+};
+
+#endif // ORDERMANAGEMENTSYSTEM_H
+//
+// Created by Admin on 20/10/2024.
+//
+
+#ifndef ORDER_H
+#define ORDER_H
+
+#include <string>
+#include <optional>
+
+class Order {
+public:
+    // Enumerations for validation of acceptable values
+    enum class Side { Buy, Sell };
+    enum class OrderType { Market, Limit, Stop, StopLimit, TrailingStop };
+    enum class TimeInForce { Day, GTC, OPG, CLS, IOC, FOK };
+
+    // Constructor
+    Order(const std::string& clientOrderID,
+        const std::string& instrument,
+        Side side, double quantity,
+        OrderType type,
+        TimeInForce timeInForce,
+        const std::string& exchange);
+
+    // Getters
+    std::string getInstrument() const;
+    std::string getOrderType() const;
+    std::string getSide() const;
+    double getQuantity() const;
+    std::string getExchange() const;
+    std::string getTimeInForce() const;
+    std::optional<double> getLimitPrice() const;
+    std::optional<double> getStopPrice() const;
+    std::optional<double> getTrailPrice() const;
+    std::optional<double> getTrailPercent() const;
+    bool isExtendedHours() const;
+    std::string getClientOrderID() const;
+    std::string getOrderClass() const;
+
+    // Setters (for optional fields)
+    void setLimitPrice(double price);
+    void setStopPrice(double price);
+    void setTrailPrice(double price);
+    void setTrailPercent(double percent);
+    void setExtendedHours(bool extended);
+    // void setClientOrderID(const std::string& orderId);
+    void setOrderClass(const std::string& orderClass);
+
+    // Validation function (static to avoid object creation for validation)
+    static bool isValidOrderType(const OrderType type);
+    static bool isValidSide(const Side side);
+    static bool isValidTimeInForce(const TimeInForce timeInForce);
+
+private:
+    std::string clientOrderID;        // client order ID
+    std::string instrument;
+    Side side;                       // Buy, Sell
+    double quantity;                 // Required, number of shares
+    OrderType type;                  // Required, market, limit, stop, stop_limit, trailing_stop
+    TimeInForce timeInForce;         // Required, e.g., day, gtc, opg, cls, ioc, fok
+    std::string exchange;            // Exchange, e.g., "NYSE"
+
+    // Optional fields
+    std::optional<double> limitPrice;  // Only for limit and stop_limit orders
+    std::optional<double> stopPrice;   // Only for stop or stop_limit orders
+    std::optional<double> trailPrice;  // Only for trailing_stop orders
+    std::optional<double> trailPercent;  // Only for trailing_stop orders
+    bool extendedHours = false;       // Default is false
+
+    std::string orderClass;           // Optional, default empty: "", bracket, oco, oto
+};
+
+#endif // ORDER_H
+
+#ifndef SOLACELIB_H
+#define SOLACELIB_H
+
+#include <winsock2.h>
+#include <solClient.h>
+#include <solClientMsg.h>
+#include <string>
+#include <nlohmann/json.hpp>
+
+class solaceLib {
+public:
+    // Constructor
+    solaceLib(const std::string& configFilePath);
+
+    // Destructor
+    ~solaceLib();
+
+    // Method to publish a message to a topic
+    void publishMessage(const std::string& topic, const std::string& message);
+
+    // Method to subscribe to a topic
+    void subscribeToTopic(const std::string& topic);
+
+private:
+    // Configuration loaded from config.json
+    std::string host;
+    std::string vpn;
+    std::string username;
+    std::string password;
+    std::string trustStoreDir;
+
+    // Solace session and context
+    solClient_opaqueSession_pt session;
+    solClient_opaqueContext_pt context;
+
+    // Callback for receiving messages
+    static solClient_rxMsgCallback_returnCode_t messageReceiveCallback(solClient_opaqueSession_pt session_p, solClient_opaqueMsg_pt msg_p, void *user_p);
+
+    // Callback for session events (e.g., connection status)
+    static void sessionEventCallback(solClient_opaqueSession_pt session_p, solClient_session_eventCallbackInfo_pt eventInfo_p, void *user_p);
+
+    // Method to load configuration from JSON
+    void loadConfig(const std::string& configFilePath);
+
+    // Method to create and connect the Solace session
+    void createSession();
+};
+
+
+#endif // SOLACELIB_H
