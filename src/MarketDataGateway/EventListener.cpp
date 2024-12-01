@@ -1,46 +1,56 @@
-//
-// Created by Admin on 13/11/2024.
-//
-
 #include "EventListener.h"
+#include <fstream>
+#include <iostream>
 
-// Constructor that initializes Solace session and subscribes to topics
-EventListener::EventListener(const std::string& configFilePath) : solaceClient(configFilePath) {
-    loadConfig(configFilePath);
-    subscribeToTopics();
+// Constructor
+EventListener::EventListener(const std::string& configFilePath, Type type)
+    : solaceClient("../config/config.json") {
+    loadTopics(configFilePath, type);
 }
 
-// Start listening for incoming messages
-void EventListener::startListening() {
-    std::thread listeningThread([this]() {
-        while (true) {
-            // Keep the program running to receive messages
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-        }
-    });
-    listeningThread.detach();
-}
-
-// Load config to retrieve the topics to subscribe to
-void EventListener::loadConfig(const std::string& configFilePath) {
-    std::ifstream configFile(configFilePath);
-    if (!configFile.is_open()) {
+// Load topics from the config file
+void EventListener::loadTopics(const std::string& configFilePath, Type type) {
+    std::ifstream file(configFilePath);
+    if (!file.is_open()) {
         throw std::runtime_error("Failed to open config file: " + configFilePath);
     }
 
     nlohmann::json configJson;
-    configFile >> configJson;
+    file >> configJson;
 
-    for (const auto& topic : configJson["topics"]) {
+    std::string key;
+    switch (type) {
+        case Type::Live: key = "live"; break;
+        case Type::Historical: key = "historical"; break;
+        case Type::Order: key = "order"; break;
+    }
+
+    for (const auto& topic : configJson[key]["topics"]) {
         topics.push_back(topic.get<std::string>());
     }
-    std::cout << "Topics loaded successfully." << std::endl;
+    std::cout << "Loaded topics: " << topics.size() << std::endl;
 }
 
-// Subscribe to each topic specified in the config
-void EventListener::subscribeToTopics() {
-    for (const auto& topic : topics) {
-        solaceClient.subscribeToTopic(topic);
-        std::cout << "Subscribed to topic: " << topic << std::endl;
-    }
+// Start listening for messages
+void EventListener::startListening() {
+    listenerThread = std::thread([this]() {
+        try {
+            for (const auto& topic : topics) {
+                solaceClient.subscribeToTopic(topic);
+                std::cout << "Subscribed to topic: " << topic << std::endl;
+            }
+            while (true) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error in EventListener: " << e.what() << std::endl;
+        }
+    });
+    listenerThread.detach(); // Detach the thread to keep listening
+}
+
+// Static message callback
+void EventListener::messageCallback(const std::string& topic, const std::string& message) {
+    std::cout << "Message received on topic: " << topic << std::endl;
+    std::cout << "Message content: " << message << std::endl;
 }

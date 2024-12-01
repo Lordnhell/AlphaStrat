@@ -1,36 +1,37 @@
-//
-// Created by Admin on 13/11/2024.
-//
-
 #ifndef EVENTLISTENER_H
 #define EVENTLISTENER_H
 
-#include "../include/solace/solaceLib.h"  // Assuming solaceLib is your wrapper for Solace messaging
+#include "../include/solace/solaceLib.h"
 #include <thread>
-#include <iostream>
-#include <fstream>
-#include <nlohmann/json.hpp>
 #include <vector>
 #include <string>
+#include <nlohmann/json.hpp>
 
-// EventListener class handles both subscribing and reacting to messages received
 class EventListener {
 public:
-    // Constructor that initializes Solace session and subscribes to topics
-    EventListener(const std::string& configFilePath);
+    // Enum for event listener types
+    enum class Type {
+        Live,
+        Historical,
+        Order
+    };
 
-    // Start listening for incoming messages
+    // Constructor
+    EventListener(const std::string& configFilePath, Type type);
+
+    // Start listening for messages in a separate thread
     void startListening();
 
 private:
-    solaceLib solaceClient;
-    std::vector<std::string> topics;
+    solaceLib solaceClient;               // Instance of solaceLib
+    std::vector<std::string> topics;      // Topics to subscribe to
+    std::thread listenerThread;           // Thread for listening
 
-    // Load config to retrieve the topics to subscribe to
-    void loadConfig(const std::string& configFilePath);
+    // Load topics from the config JSON based on listener type
+    void loadTopics(const std::string& configFilePath, Type type);
 
-    // Subscribe to each topic specified in the config
-    void subscribeToTopics();
+    // Callback function for processing received messages
+    static void messageCallback(const std::string& topic, const std::string& message);
 };
 
 #endif // EVENTLISTENER_H

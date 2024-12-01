@@ -39,34 +39,17 @@ void runAdapter(const std::string& configFile, const std::vector<std::string>& t
 int main() {
 
     try {
-        // Create EventListener objects and start listening
-        EventListener liveEventListener("../config/config.json");
-        EventListener historicalEventListener("../config/config.json");
-        EventListener orderEventListener("../config/config.json");
+        // Create EventListener objects
+        EventListener liveEventListener("../config/topics.json", EventListener::Type::Live);
+        EventListener historicalEventListener("../config/topics.json", EventListener::Type::Historical);
+        EventListener orderEventListener("../config/topics.json", EventListener::Type::Order);
 
+        // Start listening
         liveEventListener.startListening();
         historicalEventListener.startListening();
         orderEventListener.startListening();
 
         solaceLib solaceClient("../config/config.json");
-
-        // Setup subscriber threads for each topic
-        std::thread liveSubscriberThread([&]() {
-            solaceClient.subscribeToTopic("marketdata/request/live");
-        });
-
-        std::thread historicalSubscriberThread([&]() {
-            solaceClient.subscribeToTopic("marketdata/request/historical");
-        });
-
-        std::thread orderSubscriberThread([&]() {
-            solaceClient.subscribeToTopic("order/request");
-        });
-
-        // Start threads
-        liveSubscriberThread.detach();
-        historicalSubscriberThread.detach();
-        orderSubscriberThread.detach();
 
         // Loop to continuously publish messages to the subscribed topics
         int messageCount = 0;
@@ -81,7 +64,7 @@ int main() {
             solaceClient.publishMessage("marketdata/request/historical", testHistoricalMessage);
             solaceClient.publishMessage("order/request", testOrderMessage);
 
-            std::cout << "Published messages with count: " << messageCount << std::endl;
+            // std::cout << "Published messages with count: " << messageCount << std::endl;
 
             // Wait for a short period before sending the next set of messages
             std::this_thread::sleep_for(std::chrono::seconds(1));

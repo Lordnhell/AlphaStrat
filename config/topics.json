@@ -1,0 +1,17 @@
+{
+  "live": {
+    "topics": [
+      "marketdata/request/live"
+    ]
+  },
+  "historical": {
+    "topics": [
+      "marketdata/request/historical"
+    ]
+  },
+  "order": {
+    "topics": [
+      "order/request"
+    ]
+  }
+}

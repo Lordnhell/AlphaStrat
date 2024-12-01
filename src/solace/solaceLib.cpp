@@ -115,7 +115,6 @@ void solaceLib::publishMessage(const std::string& topic, const std::string& mess
 }
 
 void solaceLib::subscribeToTopic(const std::string& topic) {
-    // Subscribe to the topic
     solClient_returnCode_t rc = solClient_session_topicSubscribeExt(session, SOLCLIENT_SUBSCRIBE_FLAGS_WAITFORCONFIRM, topic.c_str());
     if (rc != SOLCLIENT_OK) {
         throw std::runtime_error("Failed to subscribe to topic: " + topic);
@@ -123,11 +122,14 @@ void solaceLib::subscribeToTopic(const std::string& topic) {
     std::cout << "Subscribed to topic: " << topic << std::endl;
 }
 
-solClient_rxMsgCallback_returnCode_t solaceLib::messageReceiveCallback(solClient_opaqueSession_pt session_p, solClient_opaqueMsg_pt msg_p, void *user_p) {
-    void* msgText;  // Changed to void* for proper type matching
+// Callback modification
+solClient_rxMsgCallback_returnCode_t solaceLib::messageReceiveCallback(solClient_opaqueSession_pt session_p, solClient_opaqueMsg_pt msg_p, void* user_p) {
+    void* msgText;
     solClient_uint32_t msgSize;
-    solClient_msg_getBinaryAttachmentPtr(msg_p, (solClient_opaquePointer_pt)&msgText, &msgSize);  // Corrected cast
-    std::cout << "Received message: " << std::string((char*)msgText, msgSize) << std::endl;
+    solClient_msg_getBinaryAttachmentPtr(msg_p, (solClient_opaquePointer_pt)&msgText, &msgSize);
+    std::string message((char*)msgText, msgSize);
+
+    std::cout << "Received message: " << message << std::endl;
     return SOLCLIENT_CALLBACK_OK;
 }
 
