@@ -51,7 +51,11 @@ file(GLOB_RECURSE TEST_FILES "tests/*.cpp")
 file(GLOB_RECURSE INCLUDE_FILES "include/*.h")
 
 # Main executable
-add_executable(AlphaStrat ${SRC_FILES} ${INCLUDE_FILES})
+add_executable(AlphaStrat ${SRC_FILES} ${INCLUDE_FILES}
+        src/strategy/Strategy.cpp
+        src/strategy/Strategy.h
+        active_strats/StatArb1/StatArb1.cpp
+        active_strats/StatArb1/StatArb1.h)
 
 # Link necessary libraries to the main executable
 target_link_libraries(AlphaStrat PRIVATE Boost::boost)

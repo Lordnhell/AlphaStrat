@@ -1,0 +1,4221 @@
+Directory structure:
+└── Lordnhell-AlphaStrat/
+    ├── README.md
+    ├── CMakeLists.txt
+    ├── alphastrat notes.docx
+    ├── context prompt.txt
+    ├── config/
+    │   └── topics.json
+    ├── deploy/
+    │   └── solace-single-docker-compose/
+    │       ├── README.md
+    │       ├── CONTRIBUTING.md
+    │       ├── LICENSE
+    │       └── template/
+    │           └── PubSubStandard_singleNode.yml
+    ├── include/
+    │   ├── combined_files.txt
+    │   ├── Adapters/
+    │   │   └── AlpacaAdapter.h
+    │   ├── MarketDataGateway/
+    │   │   ├── MarketDataGateway.h
+    │   │   └── MarketDataParser.h
+    │   ├── interface/
+    │   │   ├── AdapterEnum.h
+    │   │   └── GenericAdapter.h
+    │   ├── orderGateway/
+    │   │   ├── OMS.h
+    │   │   └── Order.h
+    │   └── solace/
+    │       └── solaceLib.h
+    ├── src/
+    │   ├── combined_files.txt
+    │   ├── main.cpp
+    │   ├── Adapters/
+    │   │   └── AlpacaAdapter.cpp
+    │   ├── MarketDataGateway/
+    │   │   ├── EventListener.cpp
+    │   │   ├── EventListener.h
+    │   │   ├── MarketDataGateway.cpp
+    │   │   └── MarketDataParser.cpp
+    │   ├── interface/
+    │   │   └── GenericAdapter.cpp
+    │   ├── orderGateway/
+    │   │   ├── OMS.cpp
+    │   │   └── Order.cpp
+    │   └── solace/
+    │       └── solaceLib.cpp
+    └── tests/
+        ├── test_Aggregator.cpp
+        ├── test_MarketDataGateway.cpp
+        ├── test_OrderGateway.cpp
+        ├── test_OrderManagementSystem.cpp
+        └── test_TradingEngine.cpp
+================================================
+File: /README.md
+================================================
+# AlphaStrat
+
+**AlphaStrat** is a market data aggregation and trading platform designed for seamless integration of real-time market data sources, starting with the **Alpaca API**. This solution follows a modular, adapter-based architecture and supports future expansion into areas such as analytics, risk, and pricing models.
+
+<!-- ![AlphaStrat](https://via.placeholder.com/1200x400) <!-- Replace this with a relevant image -->
+
+<div align="center">
+
+[![stars - AlphaStrat](https://img.shields.io/github/stars/Lordnhell/AlphaStrat?style=social)](https://github.com/Lordnhell/AlphaStrat)
+[![forks - AlphaStrat](https://img.shields.io/github/forks/Lordnhell/AlphaStrat?style=social)](https://github.com/Lordnhell/AlphaStrat)
+
+[![Lordnhell - AlphaStrat](https://img.shields.io/static/v1?label=Lordnhell&message=AlphaStrat&color=blue&logo=github)](https://github.com/Lordnhell/AlphaStrat "Go to GitHub repo")
+[![GitHub tag](https://img.shields.io/github/tag/Lordnhell/AlphaStrat?include_prereleases=&sort=semver&color=blue)](https://github.com/Lordnhell/AlphaStrat/releases/)
+[![License](https://img.shields.io/badge/License-MIT-blue)](#license)
+[![issues - AlphaStrat](https://img.shields.io/github/issues/Lordnhell/AlphaStrat)](https://github.com/Lordnhell/AlphaStrat/issues)
+
+</div>
+
+---
+
+## Description
+
+AlphaStrat is a real-time financial trading solution that integrates multiple market data sources, including the Alpaca API, with support for WebSocket streaming and future expansion to support additional adapters, analytics, and pricing. The system is designed for multi-threaded, scalable strategies, and real-time processing of Level 1-3 data.
+
+## Current Features
+
+- **Alpaca Integration:** Real-time market data streaming from Alpaca via WebSockets, with support for trade updates, order updates, and account events.
+- **Adapter Architecture:** Modular design that allows for easy integration of new data sources or functionality through custom adapters.
+- **C++20 Standards:** Built using modern C++20 features, ensuring efficient and high-performance execution.
+- **WebSocket Integration:** Supports real-time streaming of data using WebSocket++ for live market updates.
+- **nlohmann::json Integration:** JSON parsing for handling API responses, including authentication and market data subscriptions.
+
+## Architecture
+
+The architecture follows a modular design with several layers:
+- **Adapter Layer:** Adapters for each market data source (currently Alpaca, with more sources planned).
+- **Aggregator Layer:** A unified data aggregator to merge multiple data streams into a single pipeline.
+- **Cache Layer:** Future support for a caching system to store and retrieve frequently used market data.
+- **Processing Layer:** Implements trading strategies and analytics using multi-threading.
+- **Risk and Pricing Layer:** Planned addition for real-time risk management and instrument pricing.
+
+## Future Features
+
+- **Technical Analysis (TA) Builders:** Implement modular builders for advanced technical analysis indicators and analytics on live and historical data.
+- **Risk Management Module:** Integrated risk analytics for real-time risk evaluation of active portfolios and positions.
+- **Level 3 Market Data:** Support for in-depth Level 3 market data processing, including order book analysis and trading flow.
+- **Multi-threading Support:** Enable parallel processing of strategies and market data adapters to increase performance and scalability.
+- **Cache System:** Implementation of a caching layer to store frequently accessed data and enhance performance.
+- **Strategy Execution in Parallel:** Run multiple trading strategies concurrently for different instruments or market conditions.
+- **Adapter Expansion:** Add support for additional market data sources like Binance, Reuters, or IEX for seamless integration.
+- **Market Data Aggregator:** Build an aggregator to merge data from multiple sources, offering consolidated market views.
+- **Pricing Library:** Develop a library for pricing financial instruments using models like Black-Scholes, Monte Carlo simulations, and more.
+- **Risk Library:** Create a robust risk management library supporting VaR, stress testing, and scenario analysis.
+
+## Dependencies
+
+- **Boost**
+- **WebSocket++**
+- **libcurl**
+- **nlohmann::json**
+- **GTest**
+
+
+================================================
+File: /CMakeLists.txt
+================================================
+cmake_minimum_required(VERSION 3.28.1)
+project(AlphaStrat)
+
+set(CMAKE_CXX_STANDARD 20)
+message(STATUS "Project Name: ${PROJECT_NAME}")
+message(STATUS "Toolchain File: ${CMAKE_TOOLCHAIN_FILE}")
+
+# Enable Link-Time Optimization (LTO)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE)
+
+# Set debug flags (reduces debug information size)
+set(CMAKE_CXX_FLAGS_DEBUG "-g1")  # Adjust to -g0 if needed to turn off debug info
+
+# Limit optimization to prevent excessive inlining
+set(CMAKE_CXX_FLAGS_RELEASE "-O1")
+
+# Add MinGW specific flag to allow larger object files
+set(CMAKE_CXX_FLAGS "-Wa,-mbig-obj")
+
+# Suppress Boost warnings
+add_definitions(-DBOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE)
+add_definitions(-DWIN32_LEAN_AND_MEAN -DNOMINMAX)
+add_definitions(-DBOOST_BIND_GLOBAL_PLACEHOLDERS)
+
+# Include the vcpkg toolchain
+#set(CMAKE_TOOLCHAIN_FILE "[path to vcpkg]/scripts/buildsystems/vcpkg.cmake")
+
+# Set Solace SDK directory
+set(SOLCLIENT_DIR "${CMAKE_SOURCE_DIR}/Packages/packages/solclient-7.30.0.2/")
+
+# Include and link Solace headers and libraries
+include_directories(${SOLCLIENT_DIR}/include/solclient)
+link_directories(${SOLCLIENT_DIR}/lib/Win64)
+#link_directories(${SOLCLIENT_DIR}/bin/Win64)
+
+# Find necessary packages
+find_package(CURL CONFIG REQUIRED)
+find_package(GTest CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(websocketpp CONFIG REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(Boost REQUIRED)
+#find_package(SolClient REQUIRED)
+
+#target_link_libraries(main PRIVATE nlohmann_json::nlohmann_json)
+include_directories(${PROJECT_SOURCE_DIR}/include)
+
+# Gather all source files
+file(GLOB_RECURSE SRC_FILES "src/*.cpp")
+file(GLOB_RECURSE TEST_FILES "tests/*.cpp")
+file(GLOB_RECURSE INCLUDE_FILES "include/*.h")
+
+# Main executable
+add_executable(AlphaStrat ${SRC_FILES} ${INCLUDE_FILES})
+
+# Link necessary libraries to the main executable
+target_link_libraries(AlphaStrat PRIVATE Boost::boost)
+target_link_libraries(AlphaStrat PRIVATE CURL::libcurl ws2_32)
+target_link_libraries(AlphaStrat PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(AlphaStrat PRIVATE ws2_32 solclient)
+
+## Test executable (make sure to include all source files)
+#add_executable(AlphaStratTests ${TEST_FILES} ${SRC_FILES} ${INCLUDE_FILES}
+#        include/MarketDataGateway/MarketDataParser.h
+#        src/MarketDataGateway/MarketDataParser.cpp
+#)
+#target_link_libraries(AlphaStratTests PRIVATE GTest::gtest_main CURL::libcurl ws2_32)
+#enable_testing()
+#
+## Add a custom command to run tests before building the main program
+#add_custom_target(run_tests
+#        COMMAND ${CMAKE_CTEST_COMMAND}
+#        DEPENDS AlphaStratTests
+#)
+#
+## Make the main executable dependent on running tests
+#add_dependencies(AlphaStrat run_tests)
+#
+## Add a custom test for CTest
+#add_test(NAME RunAllTests COMMAND AlphaStratTests)
+
+
+================================================
+File: /config/topics.json
+================================================
+{
+  "live": {
+    "topics": [
+      "marketdata/request/live"
+    ]
+  },
+  "historical": {
+    "topics": [
+      "marketdata/request/historical"
+    ]
+  },
+  "order": {
+    "topics": [
+      "order/request"
+    ]
+  }
+}
+
+================================================
+File: /deploy/solace-single-docker-compose/README.md
+================================================
+Configure a Standalone Software Message Broker
+=====
+This project provides instructions and tools to get a single [Solace PubSub+ software message broker](https://solace.com/products/software) Docker container up-and-running on a desktop using Docker Compose. 
+
+If you are interested in setting up message brokers in an High Availability (HA) redundancy group, take a look at [Configure High-availability Groups Using Docker Compose](https://github.com/SolaceLabs/solace-ha-docker-compose).
+## Contents
+* [Before you begin](#before-you-begin)
+* [Step 1: Download the Docker Compose Template](#Step1) 
+* [Step 2: Create a PubSub+ Software Message Broker](#Step2) 
+* [Step 3: Manage the Container](#Step3) 
+* [Next Steps](#next-steps) 
+<br><br>
+<a name="before-you-begin"></a>
+## Before you begin
+The example shown, which makes use of Solace PubSub+ Standard, is suitable for use with up to 100 client connections. However, a maximum of 1,000 client connections can be configured on your platform, provided appropriate resources have been provisioned. For more information about system requirements, see [Editions of PubSub+ Event Broker: Software](https://docs.solace.com/Solace-SW-Broker-Set-Up/Setting-Up-SW-Brokers.htm) and [System Resource Requirements](https://docs.solace.com/Configuring-and-Managing/SW-Broker-Specific-Config/System-Resource-Requirements.htm).
+
+You must have installed one of:
+
+* [Docker Desktop for Windows](https://docs.docker.com/docker-for-windows/install/) with at least 2 GiB of memory dedicated to Docker Engine. For more information about allocating memory and swap space, refer to the [Docker Settings](https://docs.docker.com/docker-for-windows/#advanced) page.
+* [Docker Desktop for Mac](https://docs.docker.com/docker-for-mac/install/) with at least 2 GiB of memory dedicated to Docker Engine. For more information about allocating memory and swap space, refer to the [Docker Settings](https://docs.docker.com/docker-for-mac/#advanced) page.
+
+Ensure that Docker Compose is running by entering the following command:
+```
+docker-compose --help
+```
+If the help text is not displayed, you may need to install Docker Compose. See [Install Docker Compose](https://docs.docker.com/compose/install/) for instructions.
+
+<a name="Step1"></a>
+## Step 1: Download the Docker Compose Template
+Clone the GitHub repository containing the Docker Compose template:
+```
+git clone https://github.com/SolaceLabs/solace-single-docker-compose.git
+cd solace-single-docker-compose/template
+```
+
+<a name="Step2"></a>
+## Step 2: Create a PubSub+ Software Message Broker
+Run the following command to create a PubSub+ software message broker using the Compose template:
+```
+docker-compose -f PubSubStandard_singleNode.yml up -d
+```
+The Compose template runs a message broker named `pubSubStandardSingleNode`, using the `latest` PubSub+ Standard image pulled from Docker Hub, creates an `admin` user with global access permissions, and publishes the following message broker container ports to the same ports on the host:
+
+* port 1443 -- Web Transport over TLS
+* port 1883 -- MQTT Default VPN
+* port 1943 -- SEMP over TLS
+* port 2222 -- SSH connection to the Solace CLI
+* port 5671 -- AMQP Default VPN over TLS
+* port 5672 -- AMQP Default VPN
+* port 8000 -- MQTT Default VPN over WebSockets
+* port 8008 -- Web transport
+* port 8080 -- SEMP / PubSub+ Manager
+* port 8443 -- MQTT Default VPN over WebSockets/TLS
+* port 8883 -- MQTT Default VPN over TLS
+* port 9000 -- REST Default VPN
+* port 9443 -- REST Default VPN over TLS
+* port 55003 -- SMF Compressed
+* port 55443 -- SMF over TLS
+* port 55554 -- SMF
+
+
+For more information about the default ports used for each service, refer to [Software Message Broker Configuration Defaults](https://docs.solace.com/Configuring-and-Managing/SW-Broker-Specific-Config/SW-Broker-Configuration-Defaults.htm).
+Once the container is created, it will take about 60 seconds for the message broker to finish activating.
+
+**Note:** On MacOS Big Sur and later, port 55555 (the default SMF port for the software broker) is blocked. If this port is mapped to a port on a Docker container, the container fails to start, either silently or with a "port in use" error. To avoid this problem with MacOS Big Sur, map the SMF port to a different port on the host.
+
+
+<a name="Step3"></a>
+## Step 3: Manage the PubSub+ Software Message Broker
+
+You can access the Solace management tool, [PubSub+ Manager](https://docs.solace.com/Solace-PubSub-Manager/PubSub-Manager-Overview.htm), or the [Solace CLI](https://docs.solace.com/Solace-CLI/Using-Solace-CLI.htm) to start issuing configuration or monitoring commands on the message broker.
+
+Solace PubSub+ Manager management access:
+1. Open a browser and enter this url: _http://localhost:8080_.
+2. Log in as user `admin` with default password `admin`.
+
+Solace CLI management access:
+1. Enter the following `docker exec` command:
+```
+docker exec -it pubSubStandardSingleNode /usr/sw/loads/currentload/bin/cli -A
+```
+2. Enter the following commands to enter configuration mode:
+```
+solace> enable
+solace# config
+solace(configure)#
+```
+3. Issue configuration or monitoring commands. For a list of commands currently supported on the message broker, refer to [Software Message Broker CLI Commands](https://docs.solace.com/Solace-CLI/CLI-Reference/VMR_CLI_Commands.html).
+
+<a name="next-steps"></a>
+## Next Steps
+You now have a message broker Docker container with a basic configuration that is ready for messaging tasks.
+
+To familiarize yourself with the some of the features of PubSub+ software message brokers and appliances, see [Best Practices](https://docs.solace.com/best-practices.htm) and the [Feature Index](https://docs.solace.com/feature-index.htm).
+
+When you are feeling comfortable with your message broker, you can test messaging using the [Solace SDKPerf](https://docs.solace.com/SDKPerf/SDKPerf.htm?Highlight=SDKperf#Quick) application. You can download SDKPerf from the dev.solace.com [Downloads](https://dev.solace.com/downloads/) page.
+
+
+================================================
+File: /deploy/solace-single-docker-compose/CONTRIBUTING.md
+================================================
+## How to contribute to a Solace Project
+
+#### **Did you find a bug?**
+
+* **Ensure the bug was not already reported** by searching on GitHub under [Issues](https://github.com/SolaceLabs/solace-ha-docker-compose/issues).
+
+* If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/SolaceLabs/solace-ha-docker-compose/new). Be sure to include a **title and clear description**, as much relevant information as possible, and a **code sample** or an **executable test case** demonstrating the expected behavior that is not occurring.
+
+#### **Did you write a patch that fixes a bug?**
+
+* Open a new GitHub pull request with the patch.
+
+* Ensure the PR description clearly describes the problem and solution. Include the relevant issue number if applicable.
+
+#### **Do you intend to add a new feature or change an existing one?**
+
+* Open a GitHub [enhancement request issue](https://github.com/SolaceLabs/solace-ha-docker-compose/issues/new) and describe the new functionality.
+
+#### **Do you have questions about the source code?**
+
+* Ask any question about the code or how to use Solace messaging in the [Solace community](http://dev.solace.com/community/).
+
+
+================================================
+File: /deploy/solace-single-docker-compose/LICENSE
+================================================
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "{}"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright {yyyy} {name of copyright owner}
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+
+================================================
+File: /deploy/solace-single-docker-compose/template/PubSubStandard_singleNode.yml
+================================================
+# docker-compose -f PubSubStandard_singleNode.yml up
+version: '3.3'
+
+services:
+  primary:
+    container_name: pubSubStandardSingleNode
+    image: solace/solace-pubsub-standard:latest
+    volumes:
+      - "storage-group:/var/lib/solace"
+    shm_size: 1g
+    ulimits:
+      core: -1
+      nofile:
+        soft: 2448
+        hard: 6592
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 1
+    ports:
+    #Port Mappings:  With the exception of SMF, ports are mapped straight
+    #through from host to container.  This may result in port collisions on
+    #commonly used ports that will cause failure of the container to start.
+      #Web transport
+      - '8008:8008'
+      #Web transport over TLS
+      - '1443:1443'
+      #SEMP over TLS
+      - '1943:1943'
+      #MQTT Default VPN
+      - '1883:1883'
+      #AMQP Default VPN over TLS
+      - '5671:5671'
+      #AMQP Default VPN
+      - '5672:5672'
+      #MQTT Default VPN over WebSockets
+      - '8000:8000'
+      #MQTT Default VPN over WebSockets / TLS
+      - '8443:8443'
+      #MQTT Default VPN over TLS
+      - '8883:8883'
+      #SEMP / PubSub+ Manager
+      - '8080:8080'
+      #REST Default VPN
+      - '9000:9000'
+      #REST Default VPN over TLS
+      - '9443:9443'
+      #SMF
+      - '55554:55555'
+      #SMF Compressed
+      - '55003:55003'
+      #SMF over TLS
+      - '55443:55443'
+      #SSH connection to CLI
+      - '2222:2222'
+    environment:
+      - username_admin_globalaccesslevel=admin
+      - username_admin_password=admin
+      - system_scaling_maxconnectioncount=100
+
+volumes:
+  storage-group:
+
+
+================================================
+File: /include/combined_files.txt
+================================================
+// Created by Admin on 1/10/2024.
+//
+
+#ifndef ALPACAADAPTER_H
+#define ALPACAADAPTER_H
+#include <string>
+#include <vector>
+
+#include "../interface/GenericAdapter.h"
+#include <nlohmann/json.hpp>
+#include <websocketpp/config/asio_client.hpp>  // for TLS connection
+#include <websocketpp/client.hpp>
+#include <orderGateway/Order.h>
+
+
+typedef websocketpp::client<websocketpp::config::asio_tls_client> websocket_client;
+typedef websocketpp::connection_hdl connection_hdl;
+
+class AlpacaAdapter : public GenericAdapter {
+public:
+    // Constructor
+    AlpacaAdapter(const std::string& configFile);
+
+    // Destructor
+    ~AlpacaAdapter();
+
+    // Config parameters
+    void initialize(const std::string& configFile) override;
+
+    //Single json request
+    std::string getLatestTick(const std::string &symbol, const std::string &feed) override;
+
+    // Websocket live data
+    void subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) override;
+
+    //create order
+    std::string createOrder(const Order& order);
+
+    // Graceful disconnect method
+    void gracefulDisconnect();
+
+private:
+    // Config parameters
+    void loadConfig(const std::string& configFile);
+    std::string apiKey;
+    std::string secretKey;
+    std::string baseUrl;
+    std::string dataUrl;
+    std::string mode;
+    std::string mode_options;
+    std::mutex mtx;
+
+    bool isAuthenticated = false;
+
+    //Single json request
+    std::string performRequest(const std::string& url);
+
+    // Websocket live data
+    websocket_client c;
+    websocketpp::client<websocketpp::config::asio_tls_client>::connection_ptr con;
+
+    void initializeWebSocketConnection(websocket_client& c, const std::string& url);
+
+    std::string buildAuthMessage();
+    std::string buildSubscriptionMessage(const std::vector<std::string>& tickers);
+    void sendMessage(websocket_client* c, websocketpp::connection_hdl hdl, const nlohmann::json& message);
+    void send_auth(websocket_client* c, websocketpp::connection_hdl hdl);
+    void send_subscription(websocket_client* c, websocketpp::connection_hdl hdl);
+
+    void on_message(websocket_client* c, websocketpp::connection_hdl hdl, websocket_client::message_ptr msg);
+    void on_open(websocket_client* c, websocketpp::connection_hdl hdl);
+    void on_close(websocket_client* c, websocketpp::connection_hdl hdl);
+    void on_fail(websocket_client* c, websocketpp::connection_hdl hdl);
+};
+
+
+#endif //ALPACAADAPTER_H#ifndef ADAPTERENUM_H
+#define ADAPTERENUM_H
+
+// Enum for representing different adapter types
+enum class AdapterEnum {
+  Alpaca,
+  IBKR,
+  Binance
+    // Add other adapters as needed
+};
+
+#endif // ADAPTERENUM_H
+//
+// Created by Admin on 1/10/2024.
+//
+
+#ifndef GENERICADAPTER_H
+#define GENERICADAPTER_H
+
+#include <string>
+#include <vector>
+#include "../include/orderGateway/Order.h"
+#include <iostream>
+
+class GenericAdapter {
+public:
+    // Virtual destructor to allow proper cleanup
+    virtual ~GenericAdapter() = default;
+
+    // Initialization (pure virtual, as all adapters need this)
+    virtual void initialize(const std::string& configFile) = 0;
+
+    // Get latest tick data (optional, may not be implemented by all adapters)
+    virtual std::string getLatestTick(const std::string& symbol, const std::string& feed) {
+        return "getLatestTick() is not supported or not implemented by this adapter.";
+    }
+
+    // Subscribe to live market data (optional, may not be implemented by all adapters)
+    virtual void subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) {
+        std::cerr << "subscribeLiveData() is not supported or not implemented by this adapter." << std::endl;
+    }
+
+    // Order creation (optional, may not be implemented by all adapters)
+    virtual std::string createOrder(const Order& order) {
+        std::cerr << "createOrder() is not supported or not implemented by this adapter." << std::endl;
+        return "";
+    }
+
+    // Historical data retrieval (optional, may not be implemented by all adapters)
+    virtual void getHistoricalData(const std::string& symbol, int startTimeDate, int endStartDate) {
+        std::cerr << "getHistoricalData() is not supported or not implemented by this adapter." << std::endl;
+    }
+
+    // // Sending orders (optional, may not be implemented by all adapters)
+    // virtual void sendOrder() {
+    //     std::cerr << "sendOrder() is not supported or not implemented by this adapter." << std::endl;
+    // }
+    //
+    // // Order management methods (optional, may not be implemented by all adapters)
+    // virtual void orderManagementMethod() {
+    //     std::cerr << "orderManagementMethod() is not supported or not implemented by this adapter." << std::endl;
+    // }
+    //
+    // // Solace-related methods (optional, may not be implemented by all adapters)
+    // virtual void publisherToTopic() {
+    //     std::cerr << "publisherToTopic() is not supported or not implemented by this adapter." << std::endl;
+    // }
+    //
+    // virtual void subscribeToTopic() {
+    //     std::cerr << "subscribeToTopic() is not supported or not implemented by this adapter." << std::endl;
+    // }
+};
+
+#endif //GENERICADAPTER_H
+//
+// Created by Admin on 3/9/2024.
+//
+
+#ifndef MARKETDATA_GATEWAY_H
+#define MARKETDATA_GATEWAY_H
+
+#include <string>
+#include "MarketDataParser.h"
+
+using namespace std;
+// class MarketDataGatewayTest;
+
+class MarketDataGateway {
+public:
+    MarketDataGateway();
+    void initialize(const std::string& configFile);
+    string getMarketData(const std::string& symbol, const string& feed);
+    string getLatestQuotes(const std::string& symbol,const string& feed);
+
+
+private:
+    std::string apiKey;
+    std::string secretKey;
+    std::string baseUrl;
+    std::string dataUrl;
+
+    void loadConfig(const std::string& configFile);
+    // friend class MarketDataGatewayTest;
+};
+
+#endif // MARKETDATA_GATEWAY_H
+#ifndef MARKETDATA_PARSER_H
+#define MARKETDATA_PARSER_H
+
+#include <string>
+#include <nlohmann/json.hpp>
+
+class MarketDataParser {
+public:
+    // Static methods for parsing different response types
+    static void parseBarData(const std::string& jsonResponse);
+    static std::string parseQuoteData(const std::string& jsonResponse);
+    static void parseTradeData(const std::string& jsonResponse);
+    static void parseSnapshotData(const std::string& jsonResponse);
+
+private:
+    static void printBar(const nlohmann::json& bar);
+    static std::string printQuote(const nlohmann::json& quote);
+    static void printTrade(const nlohmann::json& trade);
+    static void printSnapshot(const nlohmann::json& snapshot);
+    static std::string convertISO8601(const std::string& date);
+};
+
+#endif // MARKETDATA_PARSER_H
+#ifndef ORDERMANAGEMENTSYSTEM_H
+#define ORDERMANAGEMENTSYSTEM_H
+
+#include <string>
+#include <map>
+#include <vector>
+#include <thread>
+#include <functional>
+#include "../include/orderGateway/OMS.h"
+#include "../include/orderGateway/Order.h"
+#include "../interface/GenericAdapter.h" // Base class for different adapters (IBKRAdapter, AlpacaAdapter, etc.)
+#include <interface/AdapterEnum.h>
+
+class OrderManagementSystem {
+public:
+    // Constructor and Destructor
+    // OrderManagementSystem();
+    // ~OrderManagementSystem();
+
+    // Function to initialize and register adapters
+    void initializeAdapters();
+    //
+    // // Event Listener for orders (listens to Solace topics)
+    // void listenForOrders();
+    //
+    // // Function to process incoming orders concurrently
+    // void processOrderConcurrently(const Order& order);
+
+    // Function to generate a unique order ID
+    // std::string generateOrderID(const std::string& instrumentSymbol, const std::string& orderType, const std::string& teId);
+    //
+    // // Function to submit a new order (calls the relevant adapter)
+    void submitOrder(const Order& order, AdapterEnum adapterType);
+    //
+    // // Function to cancel an existing order
+    // void cancelOrder(const std::string& orderId);
+
+    // // Function to modify an existing order
+    // void modifyOrder(const std::string& orderId, const Order& modifiedOrder);
+    //
+    // // Function to handle partial fills and track remaining quantity
+    // void handlePartialFill(const std::string& orderId, double filledQuantity);
+    //
+    // // Function to select the optimal adapter based on the order details
+    // Adapter* selectOptimalAdapter(const Order& order);
+    //
+    // // Function to handle real-time portfolio updates
+    // void updatePortfolio(const std::string& instrument, double quantity, double price);
+    //
+    // // Function to calculate real-time PnL for the current portfolio
+    // double calculatePnL(const std::string& instrument);
+    //
+    // // Function to fetch real-time or historical market data
+    // std::vector<double> fetchMarketData(const std::string& instrument, const std::string& timeframe, const std::string& dataType);
+    //
+    // // Function to retrieve current portfolio details
+    // std::map<std::string, double> getPortfolio();
+    //
+    // // Function to set and check risk management rules
+    // void setRiskManagement(double maxExposure, double maxLoss);
+    // bool checkRiskLimits(const Order& order);
+    //
+    // // Function to reject excess orders if risk limits or quantities are exceeded
+    // bool rejectExcessOrders(const Order& order);
+    //
+    // // Function to log order, trade, and cancellation details for compliance and audit
+    // void logTradeData(const Order& order, const std::string& status);
+    //
+    // // Smart Order Routing (SOR) - Function to optimize order routing
+    // void optimizeOrderRouting(const Order& order);
+    //
+    // // Function to maintain audit trails for compliance
+    // void auditTrail(const Order& order, const std::string& action);
+    //
+    // // Real-time risk management function
+    // void performRealTimeRiskCheck(const Order& order);
+    //
+    // // Mass cancel all active orders (kill switch)
+    // void cancelAllOrders();
+    //
+    // // Handle execution reports (update order status, send to trading engine)
+    // void handleExecutionReport(const std::string& orderId, const std::string& status, double filledQuantity, double remainingQuantity);
+    //
+    // // Notify Trading Engine of portfolio changes
+    // void notifyTEPortfolioUpdate();
+
+private:
+    // Map to store multiple adapters for different brokers
+    std::map<AdapterEnum, GenericAdapter*> OMSadapters;
+
+    // Portfolio details: instrument -> quantity
+    // std::map<std::string, double> portfolio;
+
+    // PnL details: instrument -> PnL value
+    // std::map<std::string, double> pnl;
+
+    // Risk management parameters
+    // double maxExposure;
+    // double maxLoss;
+
+    // Helper function to route orders to the correct adapter
+    // void routeOrderToAdapter(const Order& order, Adapter* adapter);
+
+    // Map to track order status
+    std::map<std::string, Order> activeOrders;
+
+    GenericAdapter* getAdapter(AdapterEnum adapterType);
+
+    // Function to update order status (e.g., Partially Filled, Filled, Cancelled)
+    // void updateOrderStatus(const std::string& orderId, const std::string& status);
+};
+
+#endif // ORDERMANAGEMENTSYSTEM_H
+//
+// Created by Admin on 20/10/2024.
+//
+
+#ifndef ORDER_H
+#define ORDER_H
+
+#include <string>
+#include <optional>
+
+class Order {
+public:
+    // Enumerations for validation of acceptable values
+    enum class Side { Buy, Sell };
+    enum class OrderType { Market, Limit, Stop, StopLimit, TrailingStop };
+    enum class TimeInForce { Day, GTC, OPG, CLS, IOC, FOK };
+
+    // Constructor
+    Order(const std::string& clientOrderID,
+        const std::string& instrument,
+        Side side, double quantity,
+        OrderType type,
+        TimeInForce timeInForce,
+        const std::string& exchange);
+
+    // Getters
+    std::string getInstrument() const;
+    std::string getOrderType() const;
+    std::string getSide() const;
+    double getQuantity() const;
+    std::string getExchange() const;
+    std::string getTimeInForce() const;
+    std::optional<double> getLimitPrice() const;
+    std::optional<double> getStopPrice() const;
+    std::optional<double> getTrailPrice() const;
+    std::optional<double> getTrailPercent() const;
+    bool isExtendedHours() const;
+    std::string getClientOrderID() const;
+    std::string getOrderClass() const;
+
+    // Setters (for optional fields)
+    void setLimitPrice(double price);
+    void setStopPrice(double price);
+    void setTrailPrice(double price);
+    void setTrailPercent(double percent);
+    void setExtendedHours(bool extended);
+    // void setClientOrderID(const std::string& orderId);
+    void setOrderClass(const std::string& orderClass);
+
+    // Validation function (static to avoid object creation for validation)
+    static bool isValidOrderType(const OrderType type);
+    static bool isValidSide(const Side side);
+    static bool isValidTimeInForce(const TimeInForce timeInForce);
+
+private:
+    std::string clientOrderID;        // client order ID
+    std::string instrument;
+    Side side;                       // Buy, Sell
+    double quantity;                 // Required, number of shares
+    OrderType type;                  // Required, market, limit, stop, stop_limit, trailing_stop
+    TimeInForce timeInForce;         // Required, e.g., day, gtc, opg, cls, ioc, fok
+    std::string exchange;            // Exchange, e.g., "NYSE"
+
+    // Optional fields
+    std::optional<double> limitPrice;  // Only for limit and stop_limit orders
+    std::optional<double> stopPrice;   // Only for stop or stop_limit orders
+    std::optional<double> trailPrice;  // Only for trailing_stop orders
+    std::optional<double> trailPercent;  // Only for trailing_stop orders
+    bool extendedHours = false;       // Default is false
+
+    std::string orderClass;           // Optional, default empty: "", bracket, oco, oto
+};
+
+#endif // ORDER_H
+
+#ifndef SOLACELIB_H
+#define SOLACELIB_H
+
+#include <winsock2.h>
+#include <solClient.h>
+#include <solClientMsg.h>
+#include <string>
+#include <nlohmann/json.hpp>
+
+class solaceLib {
+public:
+    // Constructor
+    solaceLib(const std::string& configFilePath);
+
+    // Destructor
+    ~solaceLib();
+
+    // Method to publish a message to a topic
+    void publishMessage(const std::string& topic, const std::string& message);
+
+    // Method to subscribe to a topic
+    void subscribeToTopic(const std::string& topic);
+
+private:
+    // Configuration loaded from config.json
+    std::string host;
+    std::string vpn;
+    std::string username;
+    std::string password;
+    std::string trustStoreDir;
+
+    // Solace session and context
+    solClient_opaqueSession_pt session;
+    solClient_opaqueContext_pt context;
+
+    // Callback for receiving messages
+    static solClient_rxMsgCallback_returnCode_t messageReceiveCallback(solClient_opaqueSession_pt session_p, solClient_opaqueMsg_pt msg_p, void *user_p);
+
+    // Callback for session events (e.g., connection status)
+    static void sessionEventCallback(solClient_opaqueSession_pt session_p, solClient_session_eventCallbackInfo_pt eventInfo_p, void *user_p);
+
+    // Method to load configuration from JSON
+    void loadConfig(const std::string& configFilePath);
+
+    // Method to create and connect the Solace session
+    void createSession();
+};
+
+
+#endif // SOLACELIB_H
+
+
+================================================
+File: /include/Adapters/AlpacaAdapter.h
+================================================
+// Created by Admin on 1/10/2024.
+//
+
+#ifndef ALPACAADAPTER_H
+#define ALPACAADAPTER_H
+#include <string>
+#include <vector>
+
+#include "../interface/GenericAdapter.h"
+#include <nlohmann/json.hpp>
+#include <websocketpp/config/asio_client.hpp>  // for TLS connection
+#include <websocketpp/client.hpp>
+#include <orderGateway/Order.h>
+
+
+typedef websocketpp::client<websocketpp::config::asio_tls_client> websocket_client;
+typedef websocketpp::connection_hdl connection_hdl;
+
+class AlpacaAdapter : public GenericAdapter {
+public:
+    // Constructor
+    AlpacaAdapter(const std::string& configFile);
+
+    // Destructor
+    ~AlpacaAdapter();
+
+    // Config parameters
+    void initialize(const std::string& configFile) override;
+
+    //Single json request
+    std::string getLatestTick(const std::string &symbol, const std::string &feed) override;
+
+    // Websocket live data
+    void subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) override;
+
+    //create order
+    std::string createOrder(const Order& order);
+
+    // Graceful disconnect method
+    void gracefulDisconnect();
+
+private:
+    // Config parameters
+    void loadConfig(const std::string& configFile);
+    std::string apiKey;
+    std::string secretKey;
+    std::string baseUrl;
+    std::string dataUrl;
+    std::string mode;
+    std::string mode_options;
+    std::mutex mtx;
+
+    bool isAuthenticated = false;
+
+    //Single json request
+    std::string performRequest(const std::string& url);
+
+    // Websocket live data
+    websocket_client c;
+    websocketpp::client<websocketpp::config::asio_tls_client>::connection_ptr con;
+
+    void initializeWebSocketConnection(websocket_client& c, const std::string& url);
+
+    std::string buildAuthMessage();
+    std::string buildSubscriptionMessage(const std::vector<std::string>& tickers);
+    void sendMessage(websocket_client* c, websocketpp::connection_hdl hdl, const nlohmann::json& message);
+    void send_auth(websocket_client* c, websocketpp::connection_hdl hdl);
+    void send_subscription(websocket_client* c, websocketpp::connection_hdl hdl);
+
+    void on_message(websocket_client* c, websocketpp::connection_hdl hdl, websocket_client::message_ptr msg);
+    void on_open(websocket_client* c, websocketpp::connection_hdl hdl);
+    void on_close(websocket_client* c, websocketpp::connection_hdl hdl);
+    void on_fail(websocket_client* c, websocketpp::connection_hdl hdl);
+};
+
+
+#endif //ALPACAADAPTER_H
+
+================================================
+File: /include/MarketDataGateway/MarketDataGateway.h
+================================================
+//
+// Created by Admin on 3/9/2024.
+//
+
+#ifndef MARKETDATA_GATEWAY_H
+#define MARKETDATA_GATEWAY_H
+
+#include <string>
+#include "MarketDataParser.h"
+
+using namespace std;
+// class MarketDataGatewayTest;
+
+class MarketDataGateway {
+public:
+    MarketDataGateway();
+    void initialize(const std::string& configFile);
+    string getMarketData(const std::string& symbol, const string& feed);
+    string getLatestQuotes(const std::string& symbol,const string& feed);
+
+
+private:
+    std::string apiKey;
+    std::string secretKey;
+    std::string baseUrl;
+    std::string dataUrl;
+
+    void loadConfig(const std::string& configFile);
+    // friend class MarketDataGatewayTest;
+};
+
+#endif // MARKETDATA_GATEWAY_H
+
+
+================================================
+File: /include/MarketDataGateway/MarketDataParser.h
+================================================
+#ifndef MARKETDATA_PARSER_H
+#define MARKETDATA_PARSER_H
+
+#include <string>
+#include <nlohmann/json.hpp>
+
+class MarketDataParser {
+public:
+    // Static methods for parsing different response types
+    static void parseBarData(const std::string& jsonResponse);
+    static std::string parseQuoteData(const std::string& jsonResponse);
+    static void parseTradeData(const std::string& jsonResponse);
+    static void parseSnapshotData(const std::string& jsonResponse);
+
+private:
+    static void printBar(const nlohmann::json& bar);
+    static std::string printQuote(const nlohmann::json& quote);
+    static void printTrade(const nlohmann::json& trade);
+    static void printSnapshot(const nlohmann::json& snapshot);
+    static std::string convertISO8601(const std::string& date);
+};
+
+#endif // MARKETDATA_PARSER_H
+
+
+================================================
+File: /include/interface/AdapterEnum.h
+================================================
+#ifndef ADAPTERENUM_H
+#define ADAPTERENUM_H
+
+// Enum for representing different adapter types
+enum class AdapterEnum {
+  Alpaca,
+  IBKR,
+  Binance
+    // Add other adapters as needed
+};
+
+#endif // ADAPTERENUM_H
+
+
+================================================
+File: /include/interface/GenericAdapter.h
+================================================
+//
+// Created by Admin on 1/10/2024.
+//
+
+#ifndef GENERICADAPTER_H
+#define GENERICADAPTER_H
+
+#include <string>
+#include <vector>
+#include "../include/orderGateway/Order.h"
+#include <iostream>
+
+class GenericAdapter {
+public:
+    // Virtual destructor to allow proper cleanup
+    virtual ~GenericAdapter() = default;
+
+    // Initialization (pure virtual, as all adapters need this)
+    virtual void initialize(const std::string& configFile) = 0;
+
+    // Get latest tick data (optional, may not be implemented by all adapters)
+    virtual std::string getLatestTick(const std::string& symbol, const std::string& feed) {
+        return "getLatestTick() is not supported or not implemented by this adapter.";
+    }
+
+    // Subscribe to live market data (optional, may not be implemented by all adapters)
+    virtual void subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) {
+        std::cerr << "subscribeLiveData() is not supported or not implemented by this adapter." << std::endl;
+    }
+
+    // Order creation (optional, may not be implemented by all adapters)
+    virtual std::string createOrder(const Order& order) {
+        std::cerr << "createOrder() is not supported or not implemented by this adapter." << std::endl;
+        return "";
+    }
+
+    // Historical data retrieval (optional, may not be implemented by all adapters)
+    virtual void getHistoricalData(const std::string& symbol, int startTimeDate, int endStartDate) {
+        std::cerr << "getHistoricalData() is not supported or not implemented by this adapter." << std::endl;
+    }
+
+    // // Sending orders (optional, may not be implemented by all adapters)
+    // virtual void sendOrder() {
+    //     std::cerr << "sendOrder() is not supported or not implemented by this adapter." << std::endl;
+    // }
+    //
+    // // Order management methods (optional, may not be implemented by all adapters)
+    // virtual void orderManagementMethod() {
+    //     std::cerr << "orderManagementMethod() is not supported or not implemented by this adapter." << std::endl;
+    // }
+    //
+    // // Solace-related methods (optional, may not be implemented by all adapters)
+    // virtual void publisherToTopic() {
+    //     std::cerr << "publisherToTopic() is not supported or not implemented by this adapter." << std::endl;
+    // }
+    //
+    // virtual void subscribeToTopic() {
+    //     std::cerr << "subscribeToTopic() is not supported or not implemented by this adapter." << std::endl;
+    // }
+};
+
+#endif //GENERICADAPTER_H
+
+
+================================================
+File: /include/orderGateway/OMS.h
+================================================
+#ifndef ORDERMANAGEMENTSYSTEM_H
+#define ORDERMANAGEMENTSYSTEM_H
+
+#include <string>
+#include <map>
+#include <vector>
+#include <thread>
+#include <functional>
+#include "../include/orderGateway/OMS.h"
+#include "../include/orderGateway/Order.h"
+#include "../interface/GenericAdapter.h" // Base class for different adapters (IBKRAdapter, AlpacaAdapter, etc.)
+#include <interface/AdapterEnum.h>
+
+class OrderManagementSystem {
+public:
+    // Constructor and Destructor
+    // OrderManagementSystem();
+    // ~OrderManagementSystem();
+
+    // Function to initialize and register adapters
+    void initializeAdapters();
+    //
+    // // Event Listener for orders (listens to Solace topics)
+    // void listenForOrders();
+    //
+    // // Function to process incoming orders concurrently
+    // void processOrderConcurrently(const Order& order);
+
+    // Function to generate a unique order ID
+    // std::string generateOrderID(const std::string& instrumentSymbol, const std::string& orderType, const std::string& teId);
+    //
+    // // Function to submit a new order (calls the relevant adapter)
+    void submitOrder(const Order& order, AdapterEnum adapterType);
+    //
+    // // Function to cancel an existing order
+    // void cancelOrder(const std::string& orderId);
+
+    // // Function to modify an existing order
+    // void modifyOrder(const std::string& orderId, const Order& modifiedOrder);
+    //
+    // // Function to handle partial fills and track remaining quantity
+    // void handlePartialFill(const std::string& orderId, double filledQuantity);
+    //
+    // // Function to select the optimal adapter based on the order details
+    // Adapter* selectOptimalAdapter(const Order& order);
+    //
+    // // Function to handle real-time portfolio updates
+    // void updatePortfolio(const std::string& instrument, double quantity, double price);
+    //
+    // // Function to calculate real-time PnL for the current portfolio
+    // double calculatePnL(const std::string& instrument);
+    //
+    // // Function to fetch real-time or historical market data
+    // std::vector<double> fetchMarketData(const std::string& instrument, const std::string& timeframe, const std::string& dataType);
+    //
+    // // Function to retrieve current portfolio details
+    // std::map<std::string, double> getPortfolio();
+    //
+    // // Function to set and check risk management rules
+    // void setRiskManagement(double maxExposure, double maxLoss);
+    // bool checkRiskLimits(const Order& order);
+    //
+    // // Function to reject excess orders if risk limits or quantities are exceeded
+    // bool rejectExcessOrders(const Order& order);
+    //
+    // // Function to log order, trade, and cancellation details for compliance and audit
+    // void logTradeData(const Order& order, const std::string& status);
+    //
+    // // Smart Order Routing (SOR) - Function to optimize order routing
+    // void optimizeOrderRouting(const Order& order);
+    //
+    // // Function to maintain audit trails for compliance
+    // void auditTrail(const Order& order, const std::string& action);
+    //
+    // // Real-time risk management function
+    // void performRealTimeRiskCheck(const Order& order);
+    //
+    // // Mass cancel all active orders (kill switch)
+    // void cancelAllOrders();
+    //
+    // // Handle execution reports (update order status, send to trading engine)
+    // void handleExecutionReport(const std::string& orderId, const std::string& status, double filledQuantity, double remainingQuantity);
+    //
+    // // Notify Trading Engine of portfolio changes
+    // void notifyTEPortfolioUpdate();
+
+private:
+    // Map to store multiple adapters for different brokers
+    std::map<AdapterEnum, GenericAdapter*> OMSadapters;
+
+    // Portfolio details: instrument -> quantity
+    // std::map<std::string, double> portfolio;
+
+    // PnL details: instrument -> PnL value
+    // std::map<std::string, double> pnl;
+
+    // Risk management parameters
+    // double maxExposure;
+    // double maxLoss;
+
+    // Helper function to route orders to the correct adapter
+    // void routeOrderToAdapter(const Order& order, Adapter* adapter);
+
+    // Map to track order status
+    std::map<std::string, Order> activeOrders;
+
+    GenericAdapter* getAdapter(AdapterEnum adapterType);
+
+    // Function to update order status (e.g., Partially Filled, Filled, Cancelled)
+    // void updateOrderStatus(const std::string& orderId, const std::string& status);
+};
+
+#endif // ORDERMANAGEMENTSYSTEM_H
+
+
+================================================
+File: /include/orderGateway/Order.h
+================================================
+//
+// Created by Admin on 20/10/2024.
+//
+
+#ifndef ORDER_H
+#define ORDER_H
+
+#include <string>
+#include <optional>
+
+class Order {
+public:
+    // Enumerations for validation of acceptable values
+    enum class Side { Buy, Sell };
+    enum class OrderType { Market, Limit, Stop, StopLimit, TrailingStop };
+    enum class TimeInForce { Day, GTC, OPG, CLS, IOC, FOK };
+
+    // Constructor
+    Order(const std::string& clientOrderID,
+        const std::string& instrument,
+        Side side, double quantity,
+        OrderType type,
+        TimeInForce timeInForce,
+        const std::string& exchange);
+
+    // Getters
+    std::string getInstrument() const;
+    std::string getOrderType() const;
+    std::string getSide() const;
+    double getQuantity() const;
+    std::string getExchange() const;
+    std::string getTimeInForce() const;
+    std::optional<double> getLimitPrice() const;
+    std::optional<double> getStopPrice() const;
+    std::optional<double> getTrailPrice() const;
+    std::optional<double> getTrailPercent() const;
+    bool isExtendedHours() const;
+    std::string getClientOrderID() const;
+    std::string getOrderClass() const;
+
+    // Setters (for optional fields)
+    void setLimitPrice(double price);
+    void setStopPrice(double price);
+    void setTrailPrice(double price);
+    void setTrailPercent(double percent);
+    void setExtendedHours(bool extended);
+    // void setClientOrderID(const std::string& orderId);
+    void setOrderClass(const std::string& orderClass);
+
+    // Validation function (static to avoid object creation for validation)
+    static bool isValidOrderType(const OrderType type);
+    static bool isValidSide(const Side side);
+    static bool isValidTimeInForce(const TimeInForce timeInForce);
+
+private:
+    std::string clientOrderID;        // client order ID
+    std::string instrument;
+    Side side;                       // Buy, Sell
+    double quantity;                 // Required, number of shares
+    OrderType type;                  // Required, market, limit, stop, stop_limit, trailing_stop
+    TimeInForce timeInForce;         // Required, e.g., day, gtc, opg, cls, ioc, fok
+    std::string exchange;            // Exchange, e.g., "NYSE"
+
+    // Optional fields
+    std::optional<double> limitPrice;  // Only for limit and stop_limit orders
+    std::optional<double> stopPrice;   // Only for stop or stop_limit orders
+    std::optional<double> trailPrice;  // Only for trailing_stop orders
+    std::optional<double> trailPercent;  // Only for trailing_stop orders
+    bool extendedHours = false;       // Default is false
+
+    std::string orderClass;           // Optional, default empty: "", bracket, oco, oto
+};
+
+#endif // ORDER_H
+
+
+
+================================================
+File: /include/solace/solaceLib.h
+================================================
+#ifndef SOLACELIB_H
+#define SOLACELIB_H
+
+#include <winsock2.h>
+#include <solClient.h>
+#include <solClientMsg.h>
+#include <string>
+#include <nlohmann/json.hpp>
+
+class solaceLib {
+public:
+    // Constructor
+    solaceLib(const std::string& configFilePath);
+
+    // Destructor
+    ~solaceLib();
+
+    // Method to publish a message to a topic
+    void publishMessage(const std::string& topic, const std::string& message);
+
+    // Method to subscribe to a topic
+    void subscribeToTopic(const std::string& topic);
+
+private:
+    // Configuration loaded from config.json
+    std::string host;
+    std::string vpn;
+    std::string username;
+    std::string password;
+    std::string trustStoreDir;
+
+    // Solace session and context
+    solClient_opaqueSession_pt session;
+    solClient_opaqueContext_pt context;
+
+    // Callback for receiving messages
+    static solClient_rxMsgCallback_returnCode_t messageReceiveCallback(solClient_opaqueSession_pt session_p, solClient_opaqueMsg_pt msg_p, void *user_p);
+
+    // Callback for session events (e.g., connection status)
+    static void sessionEventCallback(solClient_opaqueSession_pt session_p, solClient_session_eventCallbackInfo_pt eventInfo_p, void *user_p);
+
+    // Method to load configuration from JSON
+    void loadConfig(const std::string& configFilePath);
+
+    // Method to create and connect the Solace session
+    void createSession();
+};
+
+
+#endif // SOLACELIB_H
+
+
+================================================
+File: /src/combined_files.txt
+================================================
+#include <winsock2.h>
+#include <solClient.h>
+#include <solClientMsg.h>
+#include <iostream>
+#include <fstream>
+
+//#include "../include/Aggregator.h"
+//#include "../include/MarketDataGateway.h"
+//#include "../include/OrderGateway.h"
+#include "../include/orderGateway/OMS.h"
+//#include "../include/TradingEngine.h"
+#include <nlohmann/json.hpp>
+#include "../include/MarketDataGateway/MarketDataGateway.h"
+#include "../include/solace/solaceLib.h"
+#include "Adapters/AlpacaAdapter.h"
+#include "orderGateway/Order.h"
+#include "interface/AdapterEnum.h"
+#include "../src/MarketDataGateway/EventListener.h"
+
+using namespace std;
+
+// Signal handler
+AlpacaAdapter* adapter_ptr = nullptr;
+
+void signalHandler(int signal) {
+    std::cout << "Interrupt signal (" << signal << ") received. Performing graceful shutdown..." << std::endl;
+    if (adapter_ptr) {
+        adapter_ptr->gracefulDisconnect();
+    }
+    exit(signal);
+}
+
+// Function to run an adapter and subscribe to live data
+void runAdapter(const std::string& configFile, const std::vector<std::string>& tickers, bool testMode) {
+    AlpacaAdapter adapter(configFile);
+    adapter.subscribeLiveData(tickers, testMode);
+}
+
+int main() {
+
+    try {
+        // Create EventListener objects and start listening
+        EventListener liveEventListener("../config/config.json");
+        EventListener historicalEventListener("../config/config.json");
+        EventListener orderEventListener("../config/config.json");
+
+        liveEventListener.startListening();
+        historicalEventListener.startListening();
+        orderEventListener.startListening();
+
+        solaceLib solaceClient("../config/config.json");
+
+        // Setup subscriber threads for each topic
+        std::thread liveSubscriberThread([&]() {
+            solaceClient.subscribeToTopic("marketdata/request/live");
+        });
+
+        std::thread historicalSubscriberThread([&]() {
+            solaceClient.subscribeToTopic("marketdata/request/historical");
+        });
+
+        std::thread orderSubscriberThread([&]() {
+            solaceClient.subscribeToTopic("order/request");
+        });
+
+        // Start threads
+        liveSubscriberThread.detach();
+        historicalSubscriberThread.detach();
+        orderSubscriberThread.detach();
+
+        // Loop to continuously publish messages to the subscribed topics
+        int messageCount = 0;
+        while (messageCount < 100) {
+            // Create test messages
+            std::string testLiveMessage = "{\"event\": \"live_data\", \"message\": \"Live data sample " + std::to_string(messageCount) + "\"}";
+            std::string testHistoricalMessage = "{\"event\": \"historical_data\", \"message\": \"Historical data sample " + std::to_string(messageCount) + "\"}";
+            std::string testOrderMessage = "{\"event\": \"order_request\", \"message\": \"Order request sample " + std::to_string(messageCount) + "\"}";
+
+            // Publish the messages
+            solaceClient.publishMessage("marketdata/request/live", testLiveMessage);
+            solaceClient.publishMessage("marketdata/request/historical", testHistoricalMessage);
+            solaceClient.publishMessage("order/request", testOrderMessage);
+
+            std::cout << "Published messages with count: " << messageCount << std::endl;
+
+            // Wait for a short period before sending the next set of messages
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            messageCount++;
+        }
+
+        // Keep the program running to receive messages (subscriber)
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::seconds(10));
+        }
+
+    } catch (const std::exception& e) {
+        std::cerr << "Exception occurred: " << e.what() << std::endl;
+    }
+
+    // OrderManagementSystem oms;
+    // oms.initializeAdapters();
+    // Order example_order("AlpacaOrder001",
+    //     "AAPL",
+    //     Order::Side::Buy,
+    //     100,
+    //     Order::OrderType::Limit,
+    //     Order::TimeInForce::Day,
+    //     "NYSE");
+    //
+    // // Setting optional parameters
+    // example_order.setLimitPrice(145.50);
+    // // example_order.setClientOrderID("AlpacaOrder001");
+    // example_order.setExtendedHours(true);
+    //
+    // oms.submitOrder(example_order, AdapterEnum::Alpaca);
+
+    // unsigned int numThreads = std::thread::hardware_concurrency();
+    // std::cout << "Number of hardware threads: " << numThreads << std::endl;
+
+    /*
+      eventlistener{
+        listen for order from solace
+        have an on message router (example, cld be sending order or cancelling order get pnl ETC)
+        deserialize orders back order object using boost object
+        send to create order method
+        inside create order method, call order router method
+        order router wil route according to nature
+
+    }/*
+
+    /*
+This block of code demonstrates the use of the solaceLib client for connecting to a Solace messaging platform, subscribing to a specific topic, and publishing JSON-encoded messages to that topic.
+
+The solaceLib instance is initialized using a configuration file path, and the client subscribes to the topic `"example/topic"`.
+
+Inside a loop, it publishes 100 messages, each prefixed with "Hello from Solace!" and an incremented message count. After sending each message, it simulates a delay of 1 second. Once the loop is complete, the program continues running to allow receiving messages.
+
+If any exception occurs during execution, it is caught, and the error is printed to the console.
+*/
+
+    // try {
+    //     // Create an instance of solaceLib with the path to your config file
+    //     solaceLib solaceClient("../config/config.json");
+    //
+    //     // Define the topic
+    //     std::string topic = "example/topic";
+    //
+    //     // Subscribe to the topic
+    //     solaceClient.subscribeToTopic(topic);
+    //
+    //     // Run a loop to continuously publish messages and receive them
+    //     int messageCount = 0;
+    //     nlohmann::json jsonObj = {
+    //         {"key1", "value1"},
+    //         {"key2", 42},
+    //         {"key3", true}
+    //     };
+    //
+    //     // Convert the JSON object to a string
+    //     std::string jsonString = jsonObj.dump();
+    //
+    //     while (messageCount < 100) {  // You can adjust the condition for the loop
+    //         // Create a new message
+    //         std::string message = "Hello from Solace! Message #" + std::to_string(messageCount);
+    //
+    //         // Publish the message
+    //         solaceClient.publishMessage(topic, message);
+    //
+    //         // Simulate a delay between message sends (e.g., 1 second)
+    //         std::this_thread::sleep_for(std::chrono::seconds(1));
+    //
+    //         // Increment the message count
+    //         messageCount++;
+    //     }
+    //
+    //     std::cout << "Finished sending messages." << std::endl;
+    //
+    //     // Keep the program running to receive messages (optional)
+    //     while (true) {
+    //         std::this_thread::sleep_for(std::chrono::seconds(10));
+    //     }
+    //
+    // } catch (const std::exception &e) {
+    //     std::cerr << "Exception: " << e.what() << std::endl;
+    // }
+
+    /*
+ Code demonstrates how to run multiple threads, each initializing and running a
+ separate adapter for a set of tickers.The configuration files and tickers for
+ each thread are stored in vectors. Based on a user-defined mode
+ (test mode or paper trading mode), each thread starts an adapter instance
+ with its respective configuration and ticker list. The threads are then joined to
+ ensure the main program waits for all threads to finish execution.
+ Additionally, an example is shown using an AlpacaAdapter to fetch the latest
+ stock tick for "TSLA" from the "iex" data source.
+
+    //add thread pool for handling many adapters, doing a manual approach for now
+    //(alpaca only allows one subscription (free), this will be used for other adapters)
+*/
+
+    // // Register signal handler
+    // signal(SIGINT, signalHandler);
+    // signal(SIGTERM, signalHandler);
+
+    // // Example for running multiples threads
+    // std::vector<std::string> configFiles = {
+    //     "../config/config.json",
+    //     "../config/config.json"// Add as many as you want
+    // };
+    //
+    // std::vector<std::vector<std::string>> tickersList = {
+    //     {"AAPL", "GOOG"},
+    //     {"MSFT", "TSLA"}
+    // };
+
+    // std::vector<std::string> configFiles = {
+    //     "../config/config.json"
+    // };
+    //
+    // std::vector<std::vector<std::string>> tickersList = {
+    //     {"AAPL", "GOOG"}
+    // };
+    //
+    // std::vector<std::thread> threads;
+    // // User selects mode
+    // bool testMode = true;
+    // cout << "Running in " << (testMode ? "Test Mode" : "Paper Trading Mode") << endl;
+    //
+    // // Create and start adapters in separate threads
+    // for (size_t i = 0; i < configFiles.size(); ++i) {
+    //     // Start each adapter in a separate thread
+    //     threads.emplace_back(runAdapter, configFiles[i], tickersList[i], testMode);
+    // }
+    //
+    // // Wait for all threads to finish (join them)
+    // for (auto& th : threads) {
+    //     if (th.joinable()) {
+    //         th.join();
+    //     }
+    // }
+
+    // AlpacaAdapter alpaca_adapter("../config/config.json");
+    // alpaca_adapter.initialize("../config/config.json");
+    // //
+    // string response2 = alpaca_adapter.getLatestTick("tsla", "iex") ;
+    // //
+    // cout << "" << endl;
+    // cout << response2 << endl;
+
+    return 0;
+}#include <fstream>
+#include <iostream>
+#include <curl/curl.h>
+#include <vector>
+#include <string>
+#include <boost/asio/ssl/context.hpp>
+#include <thread>
+
+#include "../include/Adapters/AlpacaAdapter.h"
+#include "../include/MarketDataGateway/MarketDataParser.h"
+
+using namespace std;
+
+AlpacaAdapter::AlpacaAdapter(const std::string& configFile) {
+    loadConfig(configFile);
+}
+
+AlpacaAdapter::~AlpacaAdapter() {
+    gracefulDisconnect();  // Ensure graceful shutdown on object destruction
+}
+
+void AlpacaAdapter::gracefulDisconnect() {
+    try {
+        std::lock_guard<std::mutex> guard(mtx);
+        if (con->get_state() == websocketpp::session::state::open) {
+            c.close(con->get_handle(), websocketpp::close::status::going_away, "Client disconnect");
+        }
+        std::cout << "WebSocket connection closed gracefully." << std::endl;
+    } catch (const std::exception &e) {
+        std::cerr << "Error during graceful disconnect: " << e.what() << std::endl;
+    }
+}
+
+void AlpacaAdapter::initialize(const std::string& configFile) {
+    // try {
+    //     loadConfig(configFile);
+    //     std::cout << "AlpacaAdapter initialized successfully." << std::endl;
+    // } catch (const std::exception &e) {
+    //     std::cerr << "Error initializing AlpacaAdapter: " << e.what() << std::endl;
+    // }
+}
+
+string AlpacaAdapter::getLatestTick(const std::string &symbol, const std::string &feed) {
+    try {
+        std::string url = dataUrl + "v2/stocks/quotes/latest?symbols=" + symbol + "&feed=" + feed;
+        std::cout << "Fetching market data for " << symbol << " from: " << url << std::endl;
+        return MarketDataParser::parseQuoteData(performRequest(url));
+    } catch (const std::exception &e) {
+        std::cerr << "Error fetching latest tick: " << e.what() << std::endl;
+        return "";
+    }
+}
+
+static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
+
+void AlpacaAdapter::subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) {
+    // websocket_client c;
+    c.get_alog().clear_channels(websocketpp::log::alevel::frame_header |
+        websocketpp::log::alevel::frame_payload |
+        websocketpp::log::alevel::control);
+
+    std::string url = testMode ? "wss://stream.data.alpaca.markets/v2/test" : "wss://stream.data.alpaca.markets/v2/stocks";
+
+    // Initialize WebSocket connection
+
+
+    try {
+        // websocketpp::lib::error_code ec;
+        // websocket_client::connection_ptr con = c.get_connection(url, ec);
+        try {
+            initializeWebSocketConnection(c, url);
+        } catch (std::exception &e)
+        {
+            std::cerr << "Error initializing websocket connection: " << e.what() << std::endl;
+        }
+
+        // Set message handler to handle incoming messages (only once)
+        c.set_open_handler(std::bind(&AlpacaAdapter::on_open, this, &c, std::placeholders::_1));
+        c.set_message_handler(std::bind(&AlpacaAdapter::on_message, this, &c, std::placeholders::_1, std::placeholders::_2));
+        c.set_close_handler(std::bind(&AlpacaAdapter::on_close, this, &c, std::placeholders::_1));
+        c.set_fail_handler(std::bind(&AlpacaAdapter::on_fail, this, &c, std::placeholders::_1));
+
+        websocketpp::lib::error_code ec;
+        websocket_client::connection_ptr con = c.get_connection(url, ec);
+
+        if (ec) {
+            std::cout << "Connection error: " << ec.message() << std::endl;
+        }
+
+        c.connect(con);
+
+        // WebSocket run in a separate thread
+        std::thread websocket_thread([this]() {
+            try {
+                c.run();
+            } catch (const std::exception &e) {
+                std::cerr << "[THREAD ERROR] WebSocket thread error: " << e.what() << std::endl;
+            }
+        });
+
+        // Main thread waits for WebSocket messages and handles subscription
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            // Sending subscription message
+            send_subscription(&c, con->get_handle());
+        }
+
+        websocket_thread.join();
+
+    } catch (const websocketpp::exception& e) {
+        std::cerr << "WebSocket exception: " << e.what() << std::endl;
+    } catch (const std::exception &e) {
+        std::cerr << "General exception: " << e.what() << std::endl;
+    }
+}
+
+std::string AlpacaAdapter::createOrder(const Order& order) {
+    std::cout << "Alpaca create order called" << std::endl;
+
+    // Build the JSON body for the order
+    nlohmann::json body = {
+        {"symbol", order.getInstrument()},       // Symbol or asset to trade
+        {"qty", std::to_string(order.getQuantity())}, // Quantity (number of shares/contracts)
+        {"side", order.getSide()},               // Buy or sell
+        {"type", order.getOrderType()},          // Order type (market, limit, stop, etc.)
+        {"time_in_force", order.getTimeInForce()} // Time in force (e.g., day, gtc, ioc)
+    };
+
+    // Handle optional fields based on the order type
+    if (order.getOrderType() == "limit" || order.getOrderType() == "stop_limit") {
+        if (order.getLimitPrice()) {
+            body["limit_price"] = std::to_string(order.getLimitPrice().value());
+        }
+    }
+
+    if (order.getOrderType() == "stop" || order.getOrderType() == "stop_limit") {
+        if (order.getStopPrice()) {
+            body["stop_price"] = std::to_string(order.getStopPrice().value());
+        }
+    }
+
+    if (order.getOrderType() == "trailing_stop") {
+        if (order.getTrailPrice()) {
+            body["trail_price"] = std::to_string(order.getTrailPrice().value());
+        }
+        if (order.getTrailPercent()) {
+            body["trail_percent"] = std::to_string(order.getTrailPercent().value());
+        }
+    }
+
+    // Optional extended hours field for limit and day order types
+    if (order.getTimeInForce() == "day" && (order.getOrderType() == "limit" || order.getOrderType() == "stop_limit")) {
+        body["extended_hours"] = order.isExtendedHours();
+    }
+
+    // Optional fields
+    if (!order.getClientOrderID().empty()) {
+        body["client_order_id"] = order.getClientOrderID();
+    }
+
+    if (!order.getOrderClass().empty()) {
+        body["order_class"] = order.getOrderClass();
+    }
+
+    // Print the constructed JSON for debugging
+    std::cout << "" << std::endl;
+    std::cout << "Constructed Alpaca order JSON: " << body.dump(4) << std::endl;
+
+    // Returning the constructed JSON as a string
+    return body.dump();
+}
+
+
+void AlpacaAdapter::loadConfig(const std::string &configFile) {
+    try {
+        std::ifstream file(configFile);
+        if (file.is_open()) {
+            nlohmann::json config;
+            file >> config;
+
+            // Load Alpaca config from the nested structure
+            apiKey = config["marketAdapter"]["alpacaAdapter"]["api_key"];
+            secretKey = config["marketAdapter"]["alpacaAdapter"]["api_secret"];
+            baseUrl = config["marketAdapter"]["alpacaAdapter"]["base_url"];
+            dataUrl = config["marketAdapter"]["alpacaAdapter"]["data_url"];
+            mode = config["marketAdapter"]["alpacaAdapter"]["mode"];
+            mode_options = config["marketAdapter"]["alpacaAdapter"]["mode_options"];
+
+            std::cout << "Alpaca config loaded successfully." << std::endl;
+            std::cout << "Available modes: " + mode_options << std::endl;
+            std::cout << "Change ../config/config.json for mode. Current mode: " + mode << std::endl;
+            std::cout << "" << std::endl;
+        } else {
+            throw std::runtime_error("Unable to open config file.");
+        }
+    } catch (const std::exception &e) {
+        std::cerr << "Error loading config: " << e.what() << std::endl;
+    }
+}
+
+string AlpacaAdapter::performRequest(const std::string &url) {
+    try {
+        CURL* hnd = curl_easy_init();
+        if (!hnd) {
+            throw std::runtime_error("CURL initialization failed");
+        }
+
+        std::string readBuffer;
+        curl_easy_setopt(hnd, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(hnd, CURLOPT_WRITEDATA, &readBuffer);
+
+        struct curl_slist* headers = nullptr;
+        headers = curl_slist_append(headers, "accept: application/json");
+        std::string apiKeyHeader = "APCA-API-KEY-ID: " + apiKey;
+        headers = curl_slist_append(headers, apiKeyHeader.c_str());
+        std::string apiSecretHeader = "APCA-API-SECRET-KEY: " + secretKey;
+        headers = curl_slist_append(headers, apiSecretHeader.c_str());
+
+        curl_easy_setopt(hnd, CURLOPT_HTTPHEADER, headers);
+
+        CURLcode res = curl_easy_perform(hnd);
+
+        if (res != CURLE_OK) {
+            throw std::runtime_error(curl_easy_strerror(res));
+        }
+
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(hnd);
+
+        return readBuffer;
+
+    } catch (const std::exception &e) {
+        std::cerr << "Error performing request: " << e.what() << std::endl;
+        return "";
+    }
+}
+
+void AlpacaAdapter::on_message(websocket_client* c, websocketpp::connection_hdl hdl, websocket_client::message_ptr msg) {
+    std::lock_guard<std::mutex> guard(mtx);
+    std::cout << "< Received message: " << msg->get_payload() << std::endl;
+    std::cout << "" << std::endl;
+}
+
+void AlpacaAdapter::on_open(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::cout << "Connected to WebSocket server!" << std::endl;
+    AlpacaAdapter::send_auth(c, hdl);
+}
+
+void AlpacaAdapter::on_close(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::cout << "Connection closed!" << std::endl;
+}
+
+void AlpacaAdapter::on_fail(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::cout << "Connection failed!" << std::endl;
+}
+
+void AlpacaAdapter::sendMessage(websocket_client* c, connection_hdl hdl, const nlohmann::json& message) {
+    try {
+        std::string payload = message.dump();
+        c->send(hdl, payload, websocketpp::frame::opcode::text);
+    } catch (const std::exception &e) {
+        std::cerr << "Error sending WebSocket message: " << e.what() << std::endl;
+    }
+}
+
+void AlpacaAdapter::send_auth(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::string auth_msg = R"({"action":"auth","key":")" + apiKey + R"(","secret":")" + secretKey + R"("})";
+    c->send(hdl, auth_msg, websocketpp::frame::opcode::text);
+    // std::cout << "> Auth message: " << auth_msg << std::endl;
+}
+
+void AlpacaAdapter::send_subscription(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::string sub_msg = R"({"action":"subscribe","bars":["FAKEPACA"],"quotes":["FAKEPACA"]})";
+    c->send(hdl, sub_msg, websocketpp::frame::opcode::text);
+    std::cout << "> Subscription message: " << sub_msg << std::endl;
+}
+
+std::string AlpacaAdapter::buildAuthMessage() {
+    nlohmann::json auth_message = {
+        {"action", "auth"},
+        {"key", apiKey},
+        {"secret", secretKey}
+    };
+    return auth_message.dump();
+}
+
+std::string AlpacaAdapter::buildSubscriptionMessage(const std::vector<std::string>& tickers) {
+    nlohmann::json subscribe_message = {
+        {"action", "subscribe"},
+        {"bars", tickers},  // Subscribe to bars
+        {"quotes", tickers}   // Optionally subscribe to quotes too
+    };
+    return subscribe_message.dump();
+}
+
+void AlpacaAdapter::initializeWebSocketConnection(websocket_client& c, const std::string& url) {
+    c.init_asio();
+
+    // Set TLS initialization callback
+    c.set_tls_init_handler([](websocketpp::connection_hdl) -> websocketpp::lib::shared_ptr<boost::asio::ssl::context> {
+        try {
+            auto ctx = websocketpp::lib::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::sslv23);
+            ctx->set_default_verify_paths();
+            return ctx;
+        } catch (const std::exception &e) {
+            std::cerr << "TLS initialization error: " << e.what() << std::endl;
+            return nullptr;  // Return null on error
+        }
+    });
+}
+//
+// Created by Admin on 1/10/2024.
+//
+//
+// Created by Admin on 13/11/2024.
+//
+
+#include "EventListener.h"
+
+// Constructor that initializes Solace session and subscribes to topics
+EventListener::EventListener(const std::string& configFilePath) : solaceClient(configFilePath) {
+    loadConfig(configFilePath);
+    subscribeToTopics();
+}
+
+// Start listening for incoming messages
+void EventListener::startListening() {
+    std::thread listeningThread([this]() {
+        while (true) {
+            // Keep the program running to receive messages
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+    });
+    listeningThread.detach();
+}
+
+// Load config to retrieve the topics to subscribe to
+void EventListener::loadConfig(const std::string& configFilePath) {
+    std::ifstream configFile(configFilePath);
+    if (!configFile.is_open()) {
+        throw std::runtime_error("Failed to open config file: " + configFilePath);
+    }
+
+    nlohmann::json configJson;
+    configFile >> configJson;
+
+    for (const auto& topic : configJson["topics"]) {
+        topics.push_back(topic.get<std::string>());
+    }
+    std::cout << "Topics loaded successfully." << std::endl;
+}
+
+// Subscribe to each topic specified in the config
+void EventListener::subscribeToTopics() {
+    for (const auto& topic : topics) {
+        solaceClient.subscribeToTopic(topic);
+        std::cout << "Subscribed to topic: " << topic << std::endl;
+    }
+}//
+// Created by Admin on 3/9/2024.
+//
+// Standard and external library includes
+#include <fstream>
+#include <iostream>
+#include <curl/curl.h>
+#include "nlohmann/json.hpp"
+#include "../include/MarketDataGateway/MarketDataGateway.h"
+// Windows headers
+#ifdef _WIN32
+    // #define NOMINMAX
+    #include <windows.h>
+#endif
+
+// Constructor
+MarketDataGateway::MarketDataGateway() {}
+
+// Initialize the gateway with API keys from the config file
+void MarketDataGateway::initialize(const std::string& configFile) {
+    loadConfig(configFile);
+}
+
+// Load configuration from JSON file
+void MarketDataGateway::loadConfig(const std::string& configFile) {
+    std::ifstream file(configFile);
+    if (file.is_open()) {
+        nlohmann::json config;
+        file >> config;
+        apiKey = config["api_key"];
+        // cout << "API Key: " << apiKey << endl;
+        secretKey = config["api_secret"];
+        // cout << "API Secret: " << secretKey << endl;
+        baseUrl = config["base_url"];
+        // cout << "Base URL: " << baseUrl << endl;
+        dataUrl = config["data_url"];
+        // cout << "Data URL: " << dataUrl << endl;
+    } else {
+        std::cerr << "Unable to open config file" << std::endl;
+    }
+}
+
+// Callback function to capture CURL response data
+static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
+
+// Get market data for a given symbol
+std::string MarketDataGateway::getMarketData(const std::string& symbol,const string& feed) {
+    CURL *hnd = curl_easy_init();
+    if (!hnd) {
+        return "CURL initialization failed";
+    }
+
+    std::string readBuffer;
+    std::string url = dataUrl + "v2/stocks/quotes/latest?symbols=" + symbol + "&feed=" + feed;
+    cout << url << endl;
+
+    curl_easy_setopt(hnd, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, WriteCallback);  // Set callback function
+    curl_easy_setopt(hnd, CURLOPT_WRITEDATA, &readBuffer);  // Pass the string to store data
+
+    // Prepare headers
+    struct curl_slist *headers = NULL;
+    headers = curl_slist_append(headers, "accept: application/json");
+    std::string apiKeyHeader = "APCA-API-KEY-ID: " + apiKey;
+    headers = curl_slist_append(headers, apiKeyHeader.c_str());
+    std::string apiSecretHeader = "APCA-API-SECRET-KEY: " + secretKey;
+    headers = curl_slist_append(headers, apiSecretHeader.c_str());
+
+    curl_easy_setopt(hnd, CURLOPT_HTTPHEADER, headers);
+
+    // Perform the request
+    CURLcode res = curl_easy_perform(hnd);
+
+    // Check for errors
+    if (res != CURLE_OK) {
+        std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+    }
+
+    // Clean up
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(hnd);
+
+    return readBuffer;  // Return the result
+}
+
+std::string MarketDataGateway::getLatestQuotes(const std::string& symbol, const string& feed) {
+    CURL* hnd = curl_easy_init();
+    if (!hnd) {
+        return "CURL initialization failed";
+    }
+
+    std::string readBuffer;
+    std::string url = dataUrl + "v2/stocks/quotes/latest?symbols=" + symbol;
+    if (!feed.empty()) {
+        url += "&feed=" + feed;
+    }
+    std::cout << "Fetching latest quotes for " << symbol << " from: " << url << std::endl;
+
+    curl_easy_setopt(hnd, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(hnd, CURLOPT_WRITEDATA, &readBuffer);
+
+    // Prepare headers
+    struct curl_slist* headers = NULL;
+    headers = curl_slist_append(headers, "accept: application/json");
+    std::string apiKeyHeader = "APCA-API-KEY-ID: " + apiKey;
+    headers = curl_slist_append(headers, apiKeyHeader.c_str());
+    std::string apiSecretHeader = "APCA-API-SECRET-KEY: " + secretKey;
+    headers = curl_slist_append(headers, apiSecretHeader.c_str());
+
+    curl_easy_setopt(hnd, CURLOPT_HTTPHEADER, headers);
+
+    // Perform the request
+    CURLcode res = curl_easy_perform(hnd);
+
+    // Check for errors
+    if (res != CURLE_OK) {
+        std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+    }
+
+    // Clean up
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(hnd);
+
+    MarketDataParser::parseQuoteData(readBuffer);  // Parse and print the response
+
+    return readBuffer;  // Return the raw response
+}
+//
+// Created by Admin on 26/9/2024.
+//
+#include "../../include/MarketDataGateway/MarketDataParser.h"
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <ctime>
+
+// Helper function to print bars
+void MarketDataParser::printBar(const nlohmann::json& bar) {
+    if (bar.contains("open") && bar.contains("high") && bar.contains("low") && bar.contains("close") && bar.contains("volume")) {
+        std::cout << "Open: " << bar["open"] << ", High: " << bar["high"]
+                  << ", Low: " << bar["low"] << ", Close: " << bar["close"]
+                  << ", Volume: " << bar["volume"] << std::endl;
+    } else {
+        std::cerr << "Invalid Bar Data!" << std::endl;
+    }
+}
+
+// Helper function to print quotes
+std::string MarketDataParser::printQuote(const nlohmann::json& quote) {
+    if (quote.contains("bp")
+        && quote.contains("ap")
+        && quote.contains("bs")
+        && quote.contains("as")
+        && quote.contains("t")) {
+
+        std::ostringstream oss;
+        oss << "Bid Price: " << quote["bp"] << ", Bid Size: " << quote["bs"]
+            << ", Ask Price: " << quote["ap"] << ", Ask Size: " << quote["as"] <<", Date and Time: "<< convertISO8601(quote["t"]);
+        return oss.str();
+    } else {
+        std::cerr << "Invalid Quote Data!" << std::endl;
+        return "";
+    }
+}
+
+// Helper function to print trades
+void MarketDataParser::printTrade(const nlohmann::json& trade) {
+    if (trade.contains("price") && trade.contains("size") && trade.contains("timestamp")) {
+        std::cout << "Trade Price: " << trade["price"] << ", Size: " << trade["size"]
+                  << ", Timestamp: " << trade["timestamp"] << std::endl;
+    } else {
+        std::cerr << "Invalid Trade Data!" << std::endl;
+    }
+}
+
+// Helper function to print snapshots (combination of trades and quotes)
+void MarketDataParser::printSnapshot(const nlohmann::json& snapshot) {
+    if (snapshot.contains("latest_trade") && snapshot.contains("latest_quote")) {
+        std::cout << "Snapshot - Latest Trade and Quote:" << std::endl;
+        std::cout << "Latest Trade: ";
+        printTrade(snapshot["latest_trade"]);
+        std::cout << "Latest Quote: ";
+        printQuote(snapshot["latest_quote"]);
+    } else {
+        std::cerr << "Invalid Snapshot Data!" << std::endl;
+    }
+}
+
+// Parse Bar Data (OHLCV)
+void MarketDataParser::parseBarData(const std::string& jsonResponse) {
+    try {
+        nlohmann::json data = nlohmann::json::parse(jsonResponse);
+        if (data.contains("bar")) {
+            printBar(data["bar"]);
+        } else if (data.contains("bars")) {
+            for (const auto& bar : data["bars"]) {
+                printBar(bar);
+            }
+        } else {
+            std::cerr << "No bar data found!" << std::endl;
+        }
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+    }
+}
+
+// Parse Quote Data (Bid/Ask)
+std::string MarketDataParser::parseQuoteData(const std::string& jsonResponse) {
+    try {
+        std::cout << jsonResponse << std::endl;
+        nlohmann::json data = nlohmann::json::parse(jsonResponse);
+
+        // To collect all output in case there are multiple quotes
+        std::string result;
+
+        if (data.contains("quote")) {
+            // If there's a single quote
+            result = printQuote(data["quote"]);
+        } else if (data.contains("quotes")) {
+            // If there are multiple quotes, iterate through each
+            for (const auto& [symbol, quote] : data["quotes"].items()) {
+                result += "Symbol: " + symbol + "\n";
+                result += printQuote(quote) + "\n";
+            }
+        } else {
+            std::cerr << "No quote data found!" << std::endl;
+            return "";
+        }
+
+        return result;
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+        return "";
+    }
+}
+
+// Parse Trade Data
+void MarketDataParser::parseTradeData(const std::string& jsonResponse) {
+    try {
+        nlohmann::json data = nlohmann::json::parse(jsonResponse);
+        if (data.contains("trade")) {
+            printTrade(data["trade"]);
+        } else if (data.contains("trades")) {
+            for (const auto& [symbol, trade] : data["trades"].items()) {
+                std::cout << "Symbol: " << symbol << std::endl;
+                printTrade(trade);
+            }
+        } else {
+            std::cerr << "No trade data found!" << std::endl;
+        }
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+    }
+}
+
+// Parse Snapshot Data
+void MarketDataParser::parseSnapshotData(const std::string& jsonResponse) {
+    try {
+        nlohmann::json data = nlohmann::json::parse(jsonResponse);
+        if (data.contains("snapshot")) {
+            printSnapshot(data["snapshot"]);
+        } else if (data.contains("snapshots")) {
+            for (const auto& [symbol, snapshot] : data["snapshots"].items()) {
+                std::cout << "Symbol: " << symbol << std::endl;
+                printSnapshot(snapshot);
+            }
+        } else {
+            std::cerr << "No snapshot data found!" << std::endl;
+        }
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+    }
+}
+
+std::string MarketDataParser::convertISO8601(const std::string &date) {
+    // Extract the date and time part from the ISO 8601 string
+    std::tm tm = {};
+    std::istringstream ss(date.substr(0, 19)); // Take only the first part, excluding fractional seconds and 'Z'
+
+    // Parse the string to fill the tm structure
+    ss >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%S");
+
+    if (ss.fail()) {
+        return "Failed to parse time";
+    }
+
+    // Convert to time_t (time since epoch)
+    std::time_t time = std::mktime(&tm);
+
+    // Format the time to a readable string
+    std::ostringstream result;
+    result << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+
+    return result.str();
+}
+
+//
+// Created by Admin on 13/11/2024.
+//
+
+#ifndef EVENTLISTENER_H
+#define EVENTLISTENER_H
+
+#include "../include/solace/solaceLib.h"  // Assuming solaceLib is your wrapper for Solace messaging
+#include <thread>
+#include <iostream>
+#include <fstream>
+#include <nlohmann/json.hpp>
+#include <vector>
+#include <string>
+
+// EventListener class handles both subscribing and reacting to messages received
+class EventListener {
+public:
+    // Constructor that initializes Solace session and subscribes to topics
+    EventListener(const std::string& configFilePath);
+
+    // Start listening for incoming messages
+    void startListening();
+
+private:
+    solaceLib solaceClient;
+    std::vector<std::string> topics;
+
+    // Load config to retrieve the topics to subscribe to
+    void loadConfig(const std::string& configFilePath);
+
+    // Subscribe to each topic specified in the config
+    void subscribeToTopics();
+};
+
+#endif // EVENTLISTENER_H//
+// Created by Admin on 20/10/2024.
+//
+
+#include "../include/orderGateway/OMS.h"
+#include "../include/Adapters/AlpacaAdapter.h"
+
+
+// Initialize available adapters
+void OrderManagementSystem::initializeAdapters() {
+    // Initialize AlpacaAdapter
+    std::string alpacaConfigFile = "../config/config.json";
+    AlpacaAdapter* alpacaAdapter = new AlpacaAdapter(alpacaConfigFile);
+    OMSadapters[AdapterEnum::Alpaca] = alpacaAdapter;  // Store with enum key
+
+    // // Initialize IBKRAdapter (example)
+    // std::string ibkrConfigFile = "../config/ibkr_config.json";
+    // IBKRAdapter* ibkrAdapter = new IBKRAdapter(ibkrConfigFile);
+    // OMSadapters[AdapterEnum::IBKR] = ibkrAdapter;  // Store with enum key
+
+    std::cout << "Adapters registered with OMS." << std::endl;
+}
+
+// Helper method to get the correct adapter based on the AdapterEnum
+GenericAdapter* OrderManagementSystem::getAdapter(AdapterEnum adapterType) {
+    auto it = OMSadapters.find(adapterType);  // Find by AdapterEnum key
+    if (it != OMSadapters.end()) {
+        return it->second;  // Return the found adapter
+    } else {
+        std::cerr << "Error: Adapter not found for the given type!" << std::endl;
+        return nullptr;
+    }
+}
+
+// Submit an order through the selected adapter
+void OrderManagementSystem::submitOrder(const Order& order, AdapterEnum adapterType) {
+    std::cout << "OMS submit order called" << std::endl;
+
+    // Use the getAdapter method to get the appropriate adapter
+    GenericAdapter* adapter = getAdapter(adapterType);
+    if (adapter) {
+        adapter->createOrder(order);  // Call createOrder on the adapter
+        std::cout << "Order submitted successfully." << std::endl;
+    } else {
+        std::cerr << "Error: Could not submit order, adapter not found or invalid." << std::endl;
+    }
+}
+#include "../include/orderGateway/Order.h"
+#include <iostream>
+#include <stdexcept>
+#include <map>
+
+// Constructor implementation
+Order::Order(const std::string& clientOrderID,
+    const std::string& instrument,
+    Side side, double quantity,
+    OrderType type,
+    TimeInForce timeInForce,
+    const std::string& exchange)
+    : clientOrderID(clientOrderID),
+instrument(instrument),
+side(side),
+quantity(quantity),
+type(type),
+timeInForce(timeInForce),
+exchange(exchange) {
+
+    // Validation for required parameters
+    if (quantity <= 0) {
+        throw std::invalid_argument("Quantity must be greater than zero.");
+    }
+    if (!isValidOrderType(type)) {
+        throw std::invalid_argument("Invalid order type.");
+    }
+    if (!isValidSide(side)) {
+        throw std::invalid_argument("Invalid side.");
+    }
+    if (!isValidTimeInForce(timeInForce)) {
+        throw std::invalid_argument("Invalid time-in-force.");
+    }
+}
+
+// Getters
+std::string Order::getInstrument() const {
+    return instrument;
+}
+
+std::string Order::getSide() const {
+    return side == Side::Buy ? "buy" : "sell";
+}
+
+std::string Order::getOrderType() const {
+    static std::map<OrderType, std::string> orderTypeMap = {
+        { OrderType::Market, "market" },
+        { OrderType::Limit, "limit" },
+        { OrderType::Stop, "stop" },
+        { OrderType::StopLimit, "stop_limit" },
+        { OrderType::TrailingStop, "trailing_stop" }
+    };
+    return orderTypeMap[type];
+}
+
+double Order::getQuantity() const {
+    return quantity;
+}
+
+std::string Order::getExchange() const {
+    return exchange;
+}
+
+std::string Order::getTimeInForce() const {
+    static std::map<TimeInForce, std::string> tifMap = {
+        { TimeInForce::Day, "day" },
+        { TimeInForce::GTC, "gtc" },
+        { TimeInForce::OPG, "opg" },
+        { TimeInForce::CLS, "cls" },
+        { TimeInForce::IOC, "ioc" },
+        { TimeInForce::FOK, "fok" }
+    };
+    return tifMap[timeInForce];
+}
+
+std::optional<double> Order::getLimitPrice() const {
+    return limitPrice;
+}
+
+std::optional<double> Order::getStopPrice() const {
+    return stopPrice;
+}
+
+std::optional<double> Order::getTrailPrice() const {
+    return trailPrice;
+}
+
+std::optional<double> Order::getTrailPercent() const {
+    return trailPercent;
+}
+
+bool Order::isExtendedHours() const {
+    return extendedHours;
+}
+
+std::string Order::getClientOrderID() const {
+    return clientOrderID;
+}
+
+std::string Order::getOrderClass() const {
+    return orderClass;
+}
+
+// Setters for optional fields
+void Order::setLimitPrice(double price) {
+    limitPrice = price;
+}
+
+void Order::setStopPrice(double price) {
+    stopPrice = price;
+}
+
+void Order::setTrailPrice(double price) {
+    trailPrice = price;
+}
+
+void Order::setTrailPercent(double percent) {
+    trailPercent = percent;
+}
+
+void Order::setExtendedHours(bool extended) {
+    extendedHours = extended;
+}
+
+// void Order::setClientOrderID(const std::string& orderId) {
+//     clientOrderID = orderId;
+// }
+
+void Order::setOrderClass(const std::string& orderClass) {
+    this->orderClass = orderClass;
+}
+
+// Validation functions
+bool Order::isValidOrderType(const OrderType type) {
+    return type == OrderType::Market || type == OrderType::Limit || type == OrderType::Stop || type == OrderType::StopLimit || type == OrderType::TrailingStop;
+}
+
+bool Order::isValidSide(const Side side) {
+    return side == Side::Buy || side == Side::Sell;
+}
+
+bool Order::isValidTimeInForce(const TimeInForce timeInForce) {
+    return timeInForce == TimeInForce::Day || timeInForce == TimeInForce::GTC || timeInForce == TimeInForce::OPG || timeInForce == TimeInForce::CLS || timeInForce == TimeInForce::IOC || timeInForce == TimeInForce::FOK;
+}
+#include "../include/solace/solaceLib.h"
+#include <iostream>
+#include <fstream>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+solaceLib::solaceLib(const std::string& configFilePath) {
+    // Initialize Solace API
+    solClient_initialize(SOLCLIENT_LOG_DEFAULT_FILTER, NULL);
+
+    // Load configuration from the provided config file
+    loadConfig(configFilePath);
+
+    // Create and connect the Solace session
+    createSession();
+}
+
+solaceLib::~solaceLib() {
+    // Clean up the Solace session and context
+    if (session) {
+        solClient_session_disconnect(session);
+        solClient_session_destroy(&session);
+    }
+    if (context) {
+        solClient_context_destroy(&context);
+    }
+    solClient_cleanup();
+}
+
+void solaceLib::loadConfig(const std::string& configFilePath) {
+    std::ifstream configFile(configFilePath);
+    if (!configFile.is_open()) {
+        throw std::runtime_error("Failed to open config file: " + configFilePath);
+    }
+
+    json configJson;
+    configFile >> configJson;
+
+    // Navigate through the nested structure to load Solace configurations
+    host = configJson["solace"]["solaceLib"]["host"].get<std::string>();
+    vpn = configJson["solace"]["solaceLib"]["vpn"].get<std::string>();
+    username = configJson["solace"]["solaceLib"]["username"].get<std::string>();
+    password = configJson["solace"]["solaceLib"]["password"].get<std::string>();
+    trustStoreDir = configJson["solace"]["solaceLib"]["trustStoreDir"].get<std::string>();
+}
+
+void solaceLib::createSession() {
+    // Define session properties (connection details from loaded config)
+    const char* sessionProps[] = {
+        SOLCLIENT_SESSION_PROP_HOST, host.c_str(),
+        SOLCLIENT_SESSION_PROP_VPN_NAME, vpn.c_str(),
+        SOLCLIENT_SESSION_PROP_USERNAME, username.c_str(),
+        SOLCLIENT_SESSION_PROP_PASSWORD, password.c_str(),
+        SOLCLIENT_SESSION_PROP_SSL_TRUST_STORE_DIR, trustStoreDir.c_str(),
+        SOLCLIENT_SESSION_PROP_CONNECT_BLOCKING, SOLCLIENT_PROP_ENABLE_VAL,
+        NULL
+    };
+
+    // Initialize the context function information
+    solClient_context_createFuncInfo_t contextFuncInfo = SOLCLIENT_CONTEXT_CREATEFUNC_INITIALIZER;
+
+    // Create a context with function info
+    solClient_returnCode_t rc = solClient_context_create(SOLCLIENT_CONTEXT_PROPS_DEFAULT_WITH_CREATE_THREAD, &context, &contextFuncInfo, sizeof(contextFuncInfo));
+
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to create Solace context: " + std::string(solClient_returnCodeToString(rc)));
+    }
+
+    // Set up session callback information
+    solClient_session_createFuncInfo_t sessionFuncInfo = SOLCLIENT_SESSION_CREATEFUNC_INITIALIZER;
+    sessionFuncInfo.rxMsgInfo.callback_p = messageReceiveCallback;
+    sessionFuncInfo.rxMsgInfo.user_p = this;
+    sessionFuncInfo.eventInfo.callback_p = sessionEventCallback;  // This will be corrected to return void
+    sessionFuncInfo.eventInfo.user_p = this;
+
+    // Cast sessionProps to match the expected property array type
+    rc = solClient_session_create((solClient_propertyArray_pt)sessionProps, context, &session, &sessionFuncInfo, sizeof(sessionFuncInfo));
+
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to create Solace session: " + std::string(solClient_returnCodeToString(rc)));
+    }
+
+    // Connect the session
+    rc = solClient_session_connect(session);
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to connect to Solace broker.");
+    }
+}
+
+
+void solaceLib::publishMessage(const std::string& topic, const std::string& message) {
+    // Create a message
+    solClient_opaqueMsg_pt msg;
+    solClient_msg_alloc(&msg);
+    solClient_msg_setDeliveryMode(msg, SOLCLIENT_DELIVERY_MODE_DIRECT);
+    solClient_msg_setBinaryAttachmentString(msg, message.c_str());
+
+    // Set the destination (topic)
+    solClient_destination_t destination;
+    destination.destType = SOLCLIENT_TOPIC_DESTINATION;
+    destination.dest = topic.c_str();
+    solClient_msg_setDestination(msg, &destination, sizeof(destination));
+
+    // Publish the message
+    solClient_returnCode_t rc = solClient_session_sendMsg(session, msg);
+    if (rc != SOLCLIENT_OK) {
+        std::cerr << "Failed to send message." << std::endl;
+    } else {
+        std::cout << "Message sent successfully to topic: " << topic << std::endl;
+    }
+
+    // Cleanup
+    solClient_msg_free(&msg);
+}
+
+void solaceLib::subscribeToTopic(const std::string& topic) {
+    // Subscribe to the topic
+    solClient_returnCode_t rc = solClient_session_topicSubscribeExt(session, SOLCLIENT_SUBSCRIBE_FLAGS_WAITFORCONFIRM, topic.c_str());
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to subscribe to topic: " + topic);
+    }
+    std::cout << "Subscribed to topic: " << topic << std::endl;
+}
+
+solClient_rxMsgCallback_returnCode_t solaceLib::messageReceiveCallback(solClient_opaqueSession_pt session_p, solClient_opaqueMsg_pt msg_p, void *user_p) {
+    void* msgText;  // Changed to void* for proper type matching
+    solClient_uint32_t msgSize;
+    solClient_msg_getBinaryAttachmentPtr(msg_p, (solClient_opaquePointer_pt)&msgText, &msgSize);  // Corrected cast
+    std::cout << "Received message: " << std::string((char*)msgText, msgSize) << std::endl;
+    return SOLCLIENT_CALLBACK_OK;
+}
+
+// Fix: Changed the return type of sessionEventCallback to void
+void solaceLib::sessionEventCallback(solClient_opaqueSession_pt session_p, solClient_session_eventCallbackInfo_pt eventInfo_p, void* user_p) {
+    std::cout << "Received session event: " << solClient_session_eventToString(eventInfo_p->sessionEvent) << std::endl;
+}
+
+================================================
+File: /src/main.cpp
+================================================
+#include <winsock2.h>
+#include <solClient.h>
+#include <solClientMsg.h>
+#include <iostream>
+#include <fstream>
+
+//#include "../include/Aggregator.h"
+//#include "../include/MarketDataGateway.h"
+//#include "../include/OrderGateway.h"
+#include "../include/orderGateway/OMS.h"
+//#include "../include/TradingEngine.h"
+#include <nlohmann/json.hpp>
+#include "../include/MarketDataGateway/MarketDataGateway.h"
+#include "../include/solace/solaceLib.h"
+#include "Adapters/AlpacaAdapter.h"
+#include "orderGateway/Order.h"
+#include "interface/AdapterEnum.h"
+#include "../src/MarketDataGateway/EventListener.h"
+
+using namespace std;
+
+// Signal handler
+AlpacaAdapter* adapter_ptr = nullptr;
+
+void signalHandler(int signal) {
+    std::cout << "Interrupt signal (" << signal << ") received. Performing graceful shutdown..." << std::endl;
+    if (adapter_ptr) {
+        adapter_ptr->gracefulDisconnect();
+    }
+    exit(signal);
+}
+
+// Function to run an adapter and subscribe to live data
+void runAdapter(const std::string& configFile, const std::vector<std::string>& tickers, bool testMode) {
+    AlpacaAdapter adapter(configFile);
+    adapter.subscribeLiveData(tickers, testMode);
+}
+
+int main() {
+
+    try {
+        // Create EventListener objects
+        EventListener liveEventListener("../config/topics.json", EventListener::Type::Live);
+        EventListener historicalEventListener("../config/topics.json", EventListener::Type::Historical);
+        EventListener orderEventListener("../config/topics.json", EventListener::Type::Order);
+
+        // Start listening
+        liveEventListener.startListening();
+        historicalEventListener.startListening();
+        orderEventListener.startListening();
+
+        solaceLib solaceClient("../config/config.json");
+
+        // Loop to continuously publish messages to the subscribed topics
+        int messageCount = 0;
+        while (messageCount < 100) {
+            // Create test messages
+            std::string testLiveMessage = "{\"event\": \"live_data\", \"message\": \"Live data sample " + std::to_string(messageCount) + "\"}";
+            std::string testHistoricalMessage = "{\"event\": \"historical_data\", \"message\": \"Historical data sample " + std::to_string(messageCount) + "\"}";
+            std::string testOrderMessage = "{\"event\": \"order_request\", \"message\": \"Order request sample " + std::to_string(messageCount) + "\"}";
+
+            // Publish the messages
+            solaceClient.publishMessage("marketdata/request/live", testLiveMessage);
+            solaceClient.publishMessage("marketdata/request/historical", testHistoricalMessage);
+            solaceClient.publishMessage("order/request", testOrderMessage);
+
+            // std::cout << "Published messages with count: " << messageCount << std::endl;
+
+            // Wait for a short period before sending the next set of messages
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            messageCount++;
+        }
+
+        // Keep the program running to receive messages (subscriber)
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::seconds(10));
+        }
+
+    } catch (const std::exception& e) {
+        std::cerr << "Exception occurred: " << e.what() << std::endl;
+    }
+
+    // OrderManagementSystem oms;
+    // oms.initializeAdapters();
+    // Order example_order("AlpacaOrder001",
+    //     "AAPL",
+    //     Order::Side::Buy,
+    //     100,
+    //     Order::OrderType::Limit,
+    //     Order::TimeInForce::Day,
+    //     "NYSE");
+    //
+    // // Setting optional parameters
+    // example_order.setLimitPrice(145.50);
+    // // example_order.setClientOrderID("AlpacaOrder001");
+    // example_order.setExtendedHours(true);
+    //
+    // oms.submitOrder(example_order, AdapterEnum::Alpaca);
+
+    // unsigned int numThreads = std::thread::hardware_concurrency();
+    // std::cout << "Number of hardware threads: " << numThreads << std::endl;
+
+    /*
+      eventlistener{
+        listen for order from solace
+        have an on message router (example, cld be sending order or cancelling order get pnl ETC)
+        deserialize orders back order object using boost object
+        send to create order method
+        inside create order method, call order router method
+        order router wil route according to nature
+
+    }/*
+
+    /*
+This block of code demonstrates the use of the solaceLib client for connecting to a Solace messaging platform, subscribing to a specific topic, and publishing JSON-encoded messages to that topic.
+
+The solaceLib instance is initialized using a configuration file path, and the client subscribes to the topic `"example/topic"`.
+
+Inside a loop, it publishes 100 messages, each prefixed with "Hello from Solace!" and an incremented message count. After sending each message, it simulates a delay of 1 second. Once the loop is complete, the program continues running to allow receiving messages.
+
+If any exception occurs during execution, it is caught, and the error is printed to the console.
+*/
+
+    // try {
+    //     // Create an instance of solaceLib with the path to your config file
+    //     solaceLib solaceClient("../config/config.json");
+    //
+    //     // Define the topic
+    //     std::string topic = "example/topic";
+    //
+    //     // Subscribe to the topic
+    //     solaceClient.subscribeToTopic(topic);
+    //
+    //     // Run a loop to continuously publish messages and receive them
+    //     int messageCount = 0;
+    //     nlohmann::json jsonObj = {
+    //         {"key1", "value1"},
+    //         {"key2", 42},
+    //         {"key3", true}
+    //     };
+    //
+    //     // Convert the JSON object to a string
+    //     std::string jsonString = jsonObj.dump();
+    //
+    //     while (messageCount < 100) {  // You can adjust the condition for the loop
+    //         // Create a new message
+    //         std::string message = "Hello from Solace! Message #" + std::to_string(messageCount);
+    //
+    //         // Publish the message
+    //         solaceClient.publishMessage(topic, message);
+    //
+    //         // Simulate a delay between message sends (e.g., 1 second)
+    //         std::this_thread::sleep_for(std::chrono::seconds(1));
+    //
+    //         // Increment the message count
+    //         messageCount++;
+    //     }
+    //
+    //     std::cout << "Finished sending messages." << std::endl;
+    //
+    //     // Keep the program running to receive messages (optional)
+    //     while (true) {
+    //         std::this_thread::sleep_for(std::chrono::seconds(10));
+    //     }
+    //
+    // } catch (const std::exception &e) {
+    //     std::cerr << "Exception: " << e.what() << std::endl;
+    // }
+
+    /*
+ Code demonstrates how to run multiple threads, each initializing and running a
+ separate adapter for a set of tickers.The configuration files and tickers for
+ each thread are stored in vectors. Based on a user-defined mode
+ (test mode or paper trading mode), each thread starts an adapter instance
+ with its respective configuration and ticker list. The threads are then joined to
+ ensure the main program waits for all threads to finish execution.
+ Additionally, an example is shown using an AlpacaAdapter to fetch the latest
+ stock tick for "TSLA" from the "iex" data source.
+
+    //add thread pool for handling many adapters, doing a manual approach for now
+    //(alpaca only allows one subscription (free), this will be used for other adapters)
+*/
+
+    // // Register signal handler
+    // signal(SIGINT, signalHandler);
+    // signal(SIGTERM, signalHandler);
+
+    // // Example for running multiples threads
+    // std::vector<std::string> configFiles = {
+    //     "../config/config.json",
+    //     "../config/config.json"// Add as many as you want
+    // };
+    //
+    // std::vector<std::vector<std::string>> tickersList = {
+    //     {"AAPL", "GOOG"},
+    //     {"MSFT", "TSLA"}
+    // };
+
+    // std::vector<std::string> configFiles = {
+    //     "../config/config.json"
+    // };
+    //
+    // std::vector<std::vector<std::string>> tickersList = {
+    //     {"AAPL", "GOOG"}
+    // };
+    //
+    // std::vector<std::thread> threads;
+    // // User selects mode
+    // bool testMode = true;
+    // cout << "Running in " << (testMode ? "Test Mode" : "Paper Trading Mode") << endl;
+    //
+    // // Create and start adapters in separate threads
+    // for (size_t i = 0; i < configFiles.size(); ++i) {
+    //     // Start each adapter in a separate thread
+    //     threads.emplace_back(runAdapter, configFiles[i], tickersList[i], testMode);
+    // }
+    //
+    // // Wait for all threads to finish (join them)
+    // for (auto& th : threads) {
+    //     if (th.joinable()) {
+    //         th.join();
+    //     }
+    // }
+
+    // AlpacaAdapter alpaca_adapter("../config/config.json");
+    // alpaca_adapter.initialize("../config/config.json");
+    // //
+    // string response2 = alpaca_adapter.getLatestTick("tsla", "iex") ;
+    // //
+    // cout << "" << endl;
+    // cout << response2 << endl;
+
+    return 0;
+}
+
+================================================
+File: /src/Adapters/AlpacaAdapter.cpp
+================================================
+#include <fstream>
+#include <iostream>
+#include <curl/curl.h>
+#include <vector>
+#include <string>
+#include <boost/asio/ssl/context.hpp>
+#include <thread>
+
+#include "../include/Adapters/AlpacaAdapter.h"
+#include "../include/MarketDataGateway/MarketDataParser.h"
+
+using namespace std;
+
+AlpacaAdapter::AlpacaAdapter(const std::string& configFile) {
+    loadConfig(configFile);
+}
+
+AlpacaAdapter::~AlpacaAdapter() {
+    gracefulDisconnect();  // Ensure graceful shutdown on object destruction
+}
+
+void AlpacaAdapter::gracefulDisconnect() {
+    try {
+        std::lock_guard<std::mutex> guard(mtx);
+        if (con->get_state() == websocketpp::session::state::open) {
+            c.close(con->get_handle(), websocketpp::close::status::going_away, "Client disconnect");
+        }
+        std::cout << "WebSocket connection closed gracefully." << std::endl;
+    } catch (const std::exception &e) {
+        std::cerr << "Error during graceful disconnect: " << e.what() << std::endl;
+    }
+}
+
+void AlpacaAdapter::initialize(const std::string& configFile) {
+    // try {
+    //     loadConfig(configFile);
+    //     std::cout << "AlpacaAdapter initialized successfully." << std::endl;
+    // } catch (const std::exception &e) {
+    //     std::cerr << "Error initializing AlpacaAdapter: " << e.what() << std::endl;
+    // }
+}
+
+string AlpacaAdapter::getLatestTick(const std::string &symbol, const std::string &feed) {
+    try {
+        std::string url = dataUrl + "v2/stocks/quotes/latest?symbols=" + symbol + "&feed=" + feed;
+        std::cout << "Fetching market data for " << symbol << " from: " << url << std::endl;
+        return MarketDataParser::parseQuoteData(performRequest(url));
+    } catch (const std::exception &e) {
+        std::cerr << "Error fetching latest tick: " << e.what() << std::endl;
+        return "";
+    }
+}
+
+static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
+
+void AlpacaAdapter::subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) {
+    // websocket_client c;
+    c.get_alog().clear_channels(websocketpp::log::alevel::frame_header |
+        websocketpp::log::alevel::frame_payload |
+        websocketpp::log::alevel::control);
+
+    std::string url = testMode ? "wss://stream.data.alpaca.markets/v2/test" : "wss://stream.data.alpaca.markets/v2/stocks";
+
+    // Initialize WebSocket connection
+
+
+    try {
+        // websocketpp::lib::error_code ec;
+        // websocket_client::connection_ptr con = c.get_connection(url, ec);
+        try {
+            initializeWebSocketConnection(c, url);
+        } catch (std::exception &e)
+        {
+            std::cerr << "Error initializing websocket connection: " << e.what() << std::endl;
+        }
+
+        // Set message handler to handle incoming messages (only once)
+        c.set_open_handler(std::bind(&AlpacaAdapter::on_open, this, &c, std::placeholders::_1));
+        c.set_message_handler(std::bind(&AlpacaAdapter::on_message, this, &c, std::placeholders::_1, std::placeholders::_2));
+        c.set_close_handler(std::bind(&AlpacaAdapter::on_close, this, &c, std::placeholders::_1));
+        c.set_fail_handler(std::bind(&AlpacaAdapter::on_fail, this, &c, std::placeholders::_1));
+
+        websocketpp::lib::error_code ec;
+        websocket_client::connection_ptr con = c.get_connection(url, ec);
+
+        if (ec) {
+            std::cout << "Connection error: " << ec.message() << std::endl;
+        }
+
+        c.connect(con);
+
+        // WebSocket run in a separate thread
+        std::thread websocket_thread([this]() {
+            try {
+                c.run();
+            } catch (const std::exception &e) {
+                std::cerr << "[THREAD ERROR] WebSocket thread error: " << e.what() << std::endl;
+            }
+        });
+
+        // Main thread waits for WebSocket messages and handles subscription
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            // Sending subscription message
+            send_subscription(&c, con->get_handle());
+        }
+
+        websocket_thread.join();
+
+    } catch (const websocketpp::exception& e) {
+        std::cerr << "WebSocket exception: " << e.what() << std::endl;
+    } catch (const std::exception &e) {
+        std::cerr << "General exception: " << e.what() << std::endl;
+    }
+}
+
+std::string AlpacaAdapter::createOrder(const Order& order) {
+    std::cout << "Alpaca create order called" << std::endl;
+
+    // Build the JSON body for the order
+    nlohmann::json body = {
+        {"symbol", order.getInstrument()},       // Symbol or asset to trade
+        {"qty", std::to_string(order.getQuantity())}, // Quantity (number of shares/contracts)
+        {"side", order.getSide()},               // Buy or sell
+        {"type", order.getOrderType()},          // Order type (market, limit, stop, etc.)
+        {"time_in_force", order.getTimeInForce()} // Time in force (e.g., day, gtc, ioc)
+    };
+
+    // Handle optional fields based on the order type
+    if (order.getOrderType() == "limit" || order.getOrderType() == "stop_limit") {
+        if (order.getLimitPrice()) {
+            body["limit_price"] = std::to_string(order.getLimitPrice().value());
+        }
+    }
+
+    if (order.getOrderType() == "stop" || order.getOrderType() == "stop_limit") {
+        if (order.getStopPrice()) {
+            body["stop_price"] = std::to_string(order.getStopPrice().value());
+        }
+    }
+
+    if (order.getOrderType() == "trailing_stop") {
+        if (order.getTrailPrice()) {
+            body["trail_price"] = std::to_string(order.getTrailPrice().value());
+        }
+        if (order.getTrailPercent()) {
+            body["trail_percent"] = std::to_string(order.getTrailPercent().value());
+        }
+    }
+
+    // Optional extended hours field for limit and day order types
+    if (order.getTimeInForce() == "day" && (order.getOrderType() == "limit" || order.getOrderType() == "stop_limit")) {
+        body["extended_hours"] = order.isExtendedHours();
+    }
+
+    // Optional fields
+    if (!order.getClientOrderID().empty()) {
+        body["client_order_id"] = order.getClientOrderID();
+    }
+
+    if (!order.getOrderClass().empty()) {
+        body["order_class"] = order.getOrderClass();
+    }
+
+    // Print the constructed JSON for debugging
+    std::cout << "" << std::endl;
+    std::cout << "Constructed Alpaca order JSON: " << body.dump(4) << std::endl;
+
+    // Returning the constructed JSON as a string
+    return body.dump();
+}
+
+
+void AlpacaAdapter::loadConfig(const std::string &configFile) {
+    try {
+        std::ifstream file(configFile);
+        if (file.is_open()) {
+            nlohmann::json config;
+            file >> config;
+
+            // Load Alpaca config from the nested structure
+            apiKey = config["marketAdapter"]["alpacaAdapter"]["api_key"];
+            secretKey = config["marketAdapter"]["alpacaAdapter"]["api_secret"];
+            baseUrl = config["marketAdapter"]["alpacaAdapter"]["base_url"];
+            dataUrl = config["marketAdapter"]["alpacaAdapter"]["data_url"];
+            mode = config["marketAdapter"]["alpacaAdapter"]["mode"];
+            mode_options = config["marketAdapter"]["alpacaAdapter"]["mode_options"];
+
+            std::cout << "Alpaca config loaded successfully." << std::endl;
+            std::cout << "Available modes: " + mode_options << std::endl;
+            std::cout << "Change ../config/config.json for mode. Current mode: " + mode << std::endl;
+            std::cout << "" << std::endl;
+        } else {
+            throw std::runtime_error("Unable to open config file.");
+        }
+    } catch (const std::exception &e) {
+        std::cerr << "Error loading config: " << e.what() << std::endl;
+    }
+}
+
+string AlpacaAdapter::performRequest(const std::string &url) {
+    try {
+        CURL* hnd = curl_easy_init();
+        if (!hnd) {
+            throw std::runtime_error("CURL initialization failed");
+        }
+
+        std::string readBuffer;
+        curl_easy_setopt(hnd, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(hnd, CURLOPT_WRITEDATA, &readBuffer);
+
+        struct curl_slist* headers = nullptr;
+        headers = curl_slist_append(headers, "accept: application/json");
+        std::string apiKeyHeader = "APCA-API-KEY-ID: " + apiKey;
+        headers = curl_slist_append(headers, apiKeyHeader.c_str());
+        std::string apiSecretHeader = "APCA-API-SECRET-KEY: " + secretKey;
+        headers = curl_slist_append(headers, apiSecretHeader.c_str());
+
+        curl_easy_setopt(hnd, CURLOPT_HTTPHEADER, headers);
+
+        CURLcode res = curl_easy_perform(hnd);
+
+        if (res != CURLE_OK) {
+            throw std::runtime_error(curl_easy_strerror(res));
+        }
+
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(hnd);
+
+        return readBuffer;
+
+    } catch (const std::exception &e) {
+        std::cerr << "Error performing request: " << e.what() << std::endl;
+        return "";
+    }
+}
+
+void AlpacaAdapter::on_message(websocket_client* c, websocketpp::connection_hdl hdl, websocket_client::message_ptr msg) {
+    std::lock_guard<std::mutex> guard(mtx);
+    std::cout << "< Received message: " << msg->get_payload() << std::endl;
+    std::cout << "" << std::endl;
+}
+
+void AlpacaAdapter::on_open(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::cout << "Connected to WebSocket server!" << std::endl;
+    AlpacaAdapter::send_auth(c, hdl);
+}
+
+void AlpacaAdapter::on_close(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::cout << "Connection closed!" << std::endl;
+}
+
+void AlpacaAdapter::on_fail(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::cout << "Connection failed!" << std::endl;
+}
+
+void AlpacaAdapter::sendMessage(websocket_client* c, connection_hdl hdl, const nlohmann::json& message) {
+    try {
+        std::string payload = message.dump();
+        c->send(hdl, payload, websocketpp::frame::opcode::text);
+    } catch (const std::exception &e) {
+        std::cerr << "Error sending WebSocket message: " << e.what() << std::endl;
+    }
+}
+
+void AlpacaAdapter::send_auth(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::string auth_msg = R"({"action":"auth","key":")" + apiKey + R"(","secret":")" + secretKey + R"("})";
+    c->send(hdl, auth_msg, websocketpp::frame::opcode::text);
+    // std::cout << "> Auth message: " << auth_msg << std::endl;
+}
+
+void AlpacaAdapter::send_subscription(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::string sub_msg = R"({"action":"subscribe","bars":["FAKEPACA"],"quotes":["FAKEPACA"]})";
+    c->send(hdl, sub_msg, websocketpp::frame::opcode::text);
+    std::cout << "> Subscription message: " << sub_msg << std::endl;
+}
+
+std::string AlpacaAdapter::buildAuthMessage() {
+    nlohmann::json auth_message = {
+        {"action", "auth"},
+        {"key", apiKey},
+        {"secret", secretKey}
+    };
+    return auth_message.dump();
+}
+
+std::string AlpacaAdapter::buildSubscriptionMessage(const std::vector<std::string>& tickers) {
+    nlohmann::json subscribe_message = {
+        {"action", "subscribe"},
+        {"bars", tickers},  // Subscribe to bars
+        {"quotes", tickers}   // Optionally subscribe to quotes too
+    };
+    return subscribe_message.dump();
+}
+
+void AlpacaAdapter::initializeWebSocketConnection(websocket_client& c, const std::string& url) {
+    c.init_asio();
+
+    // Set TLS initialization callback
+    c.set_tls_init_handler([](websocketpp::connection_hdl) -> websocketpp::lib::shared_ptr<boost::asio::ssl::context> {
+        try {
+            auto ctx = websocketpp::lib::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::sslv23);
+            ctx->set_default_verify_paths();
+            return ctx;
+        } catch (const std::exception &e) {
+            std::cerr << "TLS initialization error: " << e.what() << std::endl;
+            return nullptr;  // Return null on error
+        }
+    });
+}
+
+
+================================================
+File: /src/MarketDataGateway/EventListener.cpp
+================================================
+#include "EventListener.h"
+#include <fstream>
+#include <iostream>
+
+// Constructor
+EventListener::EventListener(const std::string& configFilePath, Type type)
+    : solaceClient("../config/config.json") {
+    loadTopics(configFilePath, type);
+}
+
+// Load topics from the config file
+void EventListener::loadTopics(const std::string& configFilePath, Type type) {
+    std::ifstream file(configFilePath);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open config file: " + configFilePath);
+    }
+
+    nlohmann::json configJson;
+    file >> configJson;
+
+    std::string key;
+    switch (type) {
+        case Type::Live: key = "live"; break;
+        case Type::Historical: key = "historical"; break;
+        case Type::Order: key = "order"; break;
+    }
+
+    for (const auto& topic : configJson[key]["topics"]) {
+        topics.push_back(topic.get<std::string>());
+    }
+    std::cout << "Loaded topics: " << topics.size() << std::endl;
+}
+
+// Start listening for messages
+void EventListener::startListening() {
+    listenerThread = std::thread([this]() {
+        try {
+            for (const auto& topic : topics) {
+                solaceClient.subscribeToTopic(topic);
+                std::cout << "Subscribed to topic: " << topic << std::endl;
+            }
+            while (true) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error in EventListener: " << e.what() << std::endl;
+        }
+    });
+    listenerThread.detach(); // Detach the thread to keep listening
+}
+
+// Static message callback
+void EventListener::messageCallback(const std::string& topic, const std::string& message) {
+    std::cout << "Message received on topic: " << topic << std::endl;
+    std::cout << "Message content: " << message << std::endl;
+}
+
+
+================================================
+File: /src/MarketDataGateway/EventListener.h
+================================================
+#ifndef EVENTLISTENER_H
+#define EVENTLISTENER_H
+
+#include "../include/solace/solaceLib.h"
+#include <thread>
+#include <vector>
+#include <string>
+#include <nlohmann/json.hpp>
+
+class EventListener {
+public:
+    // Enum for event listener types
+    enum class Type {
+        Live,
+        Historical,
+        Order
+    };
+
+    // Constructor
+    EventListener(const std::string& configFilePath, Type type);
+
+    // Start listening for messages in a separate thread
+    void startListening();
+
+private:
+    solaceLib solaceClient;               // Instance of solaceLib
+    std::vector<std::string> topics;      // Topics to subscribe to
+    std::thread listenerThread;           // Thread for listening
+
+    // Load topics from the config JSON based on listener type
+    void loadTopics(const std::string& configFilePath, Type type);
+
+    // Callback function for processing received messages
+    static void messageCallback(const std::string& topic, const std::string& message);
+};
+
+#endif // EVENTLISTENER_H
+
+
+================================================
+File: /src/MarketDataGateway/MarketDataGateway.cpp
+================================================
+//
+// Created by Admin on 3/9/2024.
+//
+// Standard and external library includes
+#include <fstream>
+#include <iostream>
+#include <curl/curl.h>
+#include "nlohmann/json.hpp"
+#include "../include/MarketDataGateway/MarketDataGateway.h"
+// Windows headers
+#ifdef _WIN32
+    // #define NOMINMAX
+    #include <windows.h>
+#endif
+
+// Constructor
+MarketDataGateway::MarketDataGateway() {}
+
+// Initialize the gateway with API keys from the config file
+void MarketDataGateway::initialize(const std::string& configFile) {
+    loadConfig(configFile);
+}
+
+// Load configuration from JSON file
+void MarketDataGateway::loadConfig(const std::string& configFile) {
+    std::ifstream file(configFile);
+    if (file.is_open()) {
+        nlohmann::json config;
+        file >> config;
+        apiKey = config["api_key"];
+        // cout << "API Key: " << apiKey << endl;
+        secretKey = config["api_secret"];
+        // cout << "API Secret: " << secretKey << endl;
+        baseUrl = config["base_url"];
+        // cout << "Base URL: " << baseUrl << endl;
+        dataUrl = config["data_url"];
+        // cout << "Data URL: " << dataUrl << endl;
+    } else {
+        std::cerr << "Unable to open config file" << std::endl;
+    }
+}
+
+// Callback function to capture CURL response data
+static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
+
+// Get market data for a given symbol
+std::string MarketDataGateway::getMarketData(const std::string& symbol,const string& feed) {
+    CURL *hnd = curl_easy_init();
+    if (!hnd) {
+        return "CURL initialization failed";
+    }
+
+    std::string readBuffer;
+    std::string url = dataUrl + "v2/stocks/quotes/latest?symbols=" + symbol + "&feed=" + feed;
+    cout << url << endl;
+
+    curl_easy_setopt(hnd, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, WriteCallback);  // Set callback function
+    curl_easy_setopt(hnd, CURLOPT_WRITEDATA, &readBuffer);  // Pass the string to store data
+
+    // Prepare headers
+    struct curl_slist *headers = NULL;
+    headers = curl_slist_append(headers, "accept: application/json");
+    std::string apiKeyHeader = "APCA-API-KEY-ID: " + apiKey;
+    headers = curl_slist_append(headers, apiKeyHeader.c_str());
+    std::string apiSecretHeader = "APCA-API-SECRET-KEY: " + secretKey;
+    headers = curl_slist_append(headers, apiSecretHeader.c_str());
+
+    curl_easy_setopt(hnd, CURLOPT_HTTPHEADER, headers);
+
+    // Perform the request
+    CURLcode res = curl_easy_perform(hnd);
+
+    // Check for errors
+    if (res != CURLE_OK) {
+        std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+    }
+
+    // Clean up
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(hnd);
+
+    return readBuffer;  // Return the result
+}
+
+std::string MarketDataGateway::getLatestQuotes(const std::string& symbol, const string& feed) {
+    CURL* hnd = curl_easy_init();
+    if (!hnd) {
+        return "CURL initialization failed";
+    }
+
+    std::string readBuffer;
+    std::string url = dataUrl + "v2/stocks/quotes/latest?symbols=" + symbol;
+    if (!feed.empty()) {
+        url += "&feed=" + feed;
+    }
+    std::cout << "Fetching latest quotes for " << symbol << " from: " << url << std::endl;
+
+    curl_easy_setopt(hnd, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(hnd, CURLOPT_WRITEDATA, &readBuffer);
+
+    // Prepare headers
+    struct curl_slist* headers = NULL;
+    headers = curl_slist_append(headers, "accept: application/json");
+    std::string apiKeyHeader = "APCA-API-KEY-ID: " + apiKey;
+    headers = curl_slist_append(headers, apiKeyHeader.c_str());
+    std::string apiSecretHeader = "APCA-API-SECRET-KEY: " + secretKey;
+    headers = curl_slist_append(headers, apiSecretHeader.c_str());
+
+    curl_easy_setopt(hnd, CURLOPT_HTTPHEADER, headers);
+
+    // Perform the request
+    CURLcode res = curl_easy_perform(hnd);
+
+    // Check for errors
+    if (res != CURLE_OK) {
+        std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+    }
+
+    // Clean up
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(hnd);
+
+    MarketDataParser::parseQuoteData(readBuffer);  // Parse and print the response
+
+    return readBuffer;  // Return the raw response
+}
+
+
+================================================
+File: /src/MarketDataGateway/MarketDataParser.cpp
+================================================
+//
+// Created by Admin on 26/9/2024.
+//
+#include "../../include/MarketDataGateway/MarketDataParser.h"
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <ctime>
+
+// Helper function to print bars
+void MarketDataParser::printBar(const nlohmann::json& bar) {
+    if (bar.contains("open") && bar.contains("high") && bar.contains("low") && bar.contains("close") && bar.contains("volume")) {
+        std::cout << "Open: " << bar["open"] << ", High: " << bar["high"]
+                  << ", Low: " << bar["low"] << ", Close: " << bar["close"]
+                  << ", Volume: " << bar["volume"] << std::endl;
+    } else {
+        std::cerr << "Invalid Bar Data!" << std::endl;
+    }
+}
+
+// Helper function to print quotes
+std::string MarketDataParser::printQuote(const nlohmann::json& quote) {
+    if (quote.contains("bp")
+        && quote.contains("ap")
+        && quote.contains("bs")
+        && quote.contains("as")
+        && quote.contains("t")) {
+
+        std::ostringstream oss;
+        oss << "Bid Price: " << quote["bp"] << ", Bid Size: " << quote["bs"]
+            << ", Ask Price: " << quote["ap"] << ", Ask Size: " << quote["as"] <<", Date and Time: "<< convertISO8601(quote["t"]);
+        return oss.str();
+    } else {
+        std::cerr << "Invalid Quote Data!" << std::endl;
+        return "";
+    }
+}
+
+// Helper function to print trades
+void MarketDataParser::printTrade(const nlohmann::json& trade) {
+    if (trade.contains("price") && trade.contains("size") && trade.contains("timestamp")) {
+        std::cout << "Trade Price: " << trade["price"] << ", Size: " << trade["size"]
+                  << ", Timestamp: " << trade["timestamp"] << std::endl;
+    } else {
+        std::cerr << "Invalid Trade Data!" << std::endl;
+    }
+}
+
+// Helper function to print snapshots (combination of trades and quotes)
+void MarketDataParser::printSnapshot(const nlohmann::json& snapshot) {
+    if (snapshot.contains("latest_trade") && snapshot.contains("latest_quote")) {
+        std::cout << "Snapshot - Latest Trade and Quote:" << std::endl;
+        std::cout << "Latest Trade: ";
+        printTrade(snapshot["latest_trade"]);
+        std::cout << "Latest Quote: ";
+        printQuote(snapshot["latest_quote"]);
+    } else {
+        std::cerr << "Invalid Snapshot Data!" << std::endl;
+    }
+}
+
+// Parse Bar Data (OHLCV)
+void MarketDataParser::parseBarData(const std::string& jsonResponse) {
+    try {
+        nlohmann::json data = nlohmann::json::parse(jsonResponse);
+        if (data.contains("bar")) {
+            printBar(data["bar"]);
+        } else if (data.contains("bars")) {
+            for (const auto& bar : data["bars"]) {
+                printBar(bar);
+            }
+        } else {
+            std::cerr << "No bar data found!" << std::endl;
+        }
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+    }
+}
+
+// Parse Quote Data (Bid/Ask)
+std::string MarketDataParser::parseQuoteData(const std::string& jsonResponse) {
+    try {
+        std::cout << jsonResponse << std::endl;
+        nlohmann::json data = nlohmann::json::parse(jsonResponse);
+
+        // To collect all output in case there are multiple quotes
+        std::string result;
+
+        if (data.contains("quote")) {
+            // If there's a single quote
+            result = printQuote(data["quote"]);
+        } else if (data.contains("quotes")) {
+            // If there are multiple quotes, iterate through each
+            for (const auto& [symbol, quote] : data["quotes"].items()) {
+                result += "Symbol: " + symbol + "\n";
+                result += printQuote(quote) + "\n";
+            }
+        } else {
+            std::cerr << "No quote data found!" << std::endl;
+            return "";
+        }
+
+        return result;
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+        return "";
+    }
+}
+
+// Parse Trade Data
+void MarketDataParser::parseTradeData(const std::string& jsonResponse) {
+    try {
+        nlohmann::json data = nlohmann::json::parse(jsonResponse);
+        if (data.contains("trade")) {
+            printTrade(data["trade"]);
+        } else if (data.contains("trades")) {
+            for (const auto& [symbol, trade] : data["trades"].items()) {
+                std::cout << "Symbol: " << symbol << std::endl;
+                printTrade(trade);
+            }
+        } else {
+            std::cerr << "No trade data found!" << std::endl;
+        }
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+    }
+}
+
+// Parse Snapshot Data
+void MarketDataParser::parseSnapshotData(const std::string& jsonResponse) {
+    try {
+        nlohmann::json data = nlohmann::json::parse(jsonResponse);
+        if (data.contains("snapshot")) {
+            printSnapshot(data["snapshot"]);
+        } else if (data.contains("snapshots")) {
+            for (const auto& [symbol, snapshot] : data["snapshots"].items()) {
+                std::cout << "Symbol: " << symbol << std::endl;
+                printSnapshot(snapshot);
+            }
+        } else {
+            std::cerr << "No snapshot data found!" << std::endl;
+        }
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+    }
+}
+
+std::string MarketDataParser::convertISO8601(const std::string &date) {
+    // Extract the date and time part from the ISO 8601 string
+    std::tm tm = {};
+    std::istringstream ss(date.substr(0, 19)); // Take only the first part, excluding fractional seconds and 'Z'
+
+    // Parse the string to fill the tm structure
+    ss >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%S");
+
+    if (ss.fail()) {
+        return "Failed to parse time";
+    }
+
+    // Convert to time_t (time since epoch)
+    std::time_t time = std::mktime(&tm);
+
+    // Format the time to a readable string
+    std::ostringstream result;
+    result << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+
+    return result.str();
+}
+
+
+
+================================================
+File: /src/interface/GenericAdapter.cpp
+================================================
+//
+// Created by Admin on 1/10/2024.
+//
+
+
+================================================
+File: /src/orderGateway/OMS.cpp
+================================================
+//
+// Created by Admin on 20/10/2024.
+//
+
+#include "../include/orderGateway/OMS.h"
+#include "../include/Adapters/AlpacaAdapter.h"
+
+
+// Initialize available adapters
+void OrderManagementSystem::initializeAdapters() {
+    // Initialize AlpacaAdapter
+    std::string alpacaConfigFile = "../config/config.json";
+    AlpacaAdapter* alpacaAdapter = new AlpacaAdapter(alpacaConfigFile);
+    OMSadapters[AdapterEnum::Alpaca] = alpacaAdapter;  // Store with enum key
+
+    // // Initialize IBKRAdapter (example)
+    // std::string ibkrConfigFile = "../config/ibkr_config.json";
+    // IBKRAdapter* ibkrAdapter = new IBKRAdapter(ibkrConfigFile);
+    // OMSadapters[AdapterEnum::IBKR] = ibkrAdapter;  // Store with enum key
+
+    std::cout << "Adapters registered with OMS." << std::endl;
+}
+
+// Helper method to get the correct adapter based on the AdapterEnum
+GenericAdapter* OrderManagementSystem::getAdapter(AdapterEnum adapterType) {
+    auto it = OMSadapters.find(adapterType);  // Find by AdapterEnum key
+    if (it != OMSadapters.end()) {
+        return it->second;  // Return the found adapter
+    } else {
+        std::cerr << "Error: Adapter not found for the given type!" << std::endl;
+        return nullptr;
+    }
+}
+
+// Submit an order through the selected adapter
+void OrderManagementSystem::submitOrder(const Order& order, AdapterEnum adapterType) {
+    std::cout << "OMS submit order called" << std::endl;
+
+    // Use the getAdapter method to get the appropriate adapter
+    GenericAdapter* adapter = getAdapter(adapterType);
+    if (adapter) {
+        adapter->createOrder(order);  // Call createOrder on the adapter
+        std::cout << "Order submitted successfully." << std::endl;
+    } else {
+        std::cerr << "Error: Could not submit order, adapter not found or invalid." << std::endl;
+    }
+}
+
+
+================================================
+File: /src/orderGateway/Order.cpp
+================================================
+#include "../include/orderGateway/Order.h"
+#include <iostream>
+#include <stdexcept>
+#include <map>
+
+// Constructor implementation
+Order::Order(const std::string& clientOrderID,
+    const std::string& instrument,
+    Side side, double quantity,
+    OrderType type,
+    TimeInForce timeInForce,
+    const std::string& exchange)
+    : clientOrderID(clientOrderID),
+instrument(instrument),
+side(side),
+quantity(quantity),
+type(type),
+timeInForce(timeInForce),
+exchange(exchange) {
+
+    // Validation for required parameters
+    if (quantity <= 0) {
+        throw std::invalid_argument("Quantity must be greater than zero.");
+    }
+    if (!isValidOrderType(type)) {
+        throw std::invalid_argument("Invalid order type.");
+    }
+    if (!isValidSide(side)) {
+        throw std::invalid_argument("Invalid side.");
+    }
+    if (!isValidTimeInForce(timeInForce)) {
+        throw std::invalid_argument("Invalid time-in-force.");
+    }
+}
+
+// Getters
+std::string Order::getInstrument() const {
+    return instrument;
+}
+
+std::string Order::getSide() const {
+    return side == Side::Buy ? "buy" : "sell";
+}
+
+std::string Order::getOrderType() const {
+    static std::map<OrderType, std::string> orderTypeMap = {
+        { OrderType::Market, "market" },
+        { OrderType::Limit, "limit" },
+        { OrderType::Stop, "stop" },
+        { OrderType::StopLimit, "stop_limit" },
+        { OrderType::TrailingStop, "trailing_stop" }
+    };
+    return orderTypeMap[type];
+}
+
+double Order::getQuantity() const {
+    return quantity;
+}
+
+std::string Order::getExchange() const {
+    return exchange;
+}
+
+std::string Order::getTimeInForce() const {
+    static std::map<TimeInForce, std::string> tifMap = {
+        { TimeInForce::Day, "day" },
+        { TimeInForce::GTC, "gtc" },
+        { TimeInForce::OPG, "opg" },
+        { TimeInForce::CLS, "cls" },
+        { TimeInForce::IOC, "ioc" },
+        { TimeInForce::FOK, "fok" }
+    };
+    return tifMap[timeInForce];
+}
+
+std::optional<double> Order::getLimitPrice() const {
+    return limitPrice;
+}
+
+std::optional<double> Order::getStopPrice() const {
+    return stopPrice;
+}
+
+std::optional<double> Order::getTrailPrice() const {
+    return trailPrice;
+}
+
+std::optional<double> Order::getTrailPercent() const {
+    return trailPercent;
+}
+
+bool Order::isExtendedHours() const {
+    return extendedHours;
+}
+
+std::string Order::getClientOrderID() const {
+    return clientOrderID;
+}
+
+std::string Order::getOrderClass() const {
+    return orderClass;
+}
+
+// Setters for optional fields
+void Order::setLimitPrice(double price) {
+    limitPrice = price;
+}
+
+void Order::setStopPrice(double price) {
+    stopPrice = price;
+}
+
+void Order::setTrailPrice(double price) {
+    trailPrice = price;
+}
+
+void Order::setTrailPercent(double percent) {
+    trailPercent = percent;
+}
+
+void Order::setExtendedHours(bool extended) {
+    extendedHours = extended;
+}
+
+// void Order::setClientOrderID(const std::string& orderId) {
+//     clientOrderID = orderId;
+// }
+
+void Order::setOrderClass(const std::string& orderClass) {
+    this->orderClass = orderClass;
+}
+
+// Validation functions
+bool Order::isValidOrderType(const OrderType type) {
+    return type == OrderType::Market || type == OrderType::Limit || type == OrderType::Stop || type == OrderType::StopLimit || type == OrderType::TrailingStop;
+}
+
+bool Order::isValidSide(const Side side) {
+    return side == Side::Buy || side == Side::Sell;
+}
+
+bool Order::isValidTimeInForce(const TimeInForce timeInForce) {
+    return timeInForce == TimeInForce::Day || timeInForce == TimeInForce::GTC || timeInForce == TimeInForce::OPG || timeInForce == TimeInForce::CLS || timeInForce == TimeInForce::IOC || timeInForce == TimeInForce::FOK;
+}
+
+
+================================================
+File: /src/solace/solaceLib.cpp
+================================================
+#include "../include/solace/solaceLib.h"
+#include <iostream>
+#include <fstream>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+solaceLib::solaceLib(const std::string& configFilePath) {
+    // Initialize Solace API
+    solClient_initialize(SOLCLIENT_LOG_DEFAULT_FILTER, NULL);
+
+    // Load configuration from the provided config file
+    loadConfig(configFilePath);
+
+    // Create and connect the Solace session
+    createSession();
+}
+
+solaceLib::~solaceLib() {
+    // Clean up the Solace session and context
+    if (session) {
+        solClient_session_disconnect(session);
+        solClient_session_destroy(&session);
+    }
+    if (context) {
+        solClient_context_destroy(&context);
+    }
+    solClient_cleanup();
+}
+
+void solaceLib::loadConfig(const std::string& configFilePath) {
+    std::ifstream configFile(configFilePath);
+    if (!configFile.is_open()) {
+        throw std::runtime_error("Failed to open config file: " + configFilePath);
+    }
+
+    json configJson;
+    configFile >> configJson;
+
+    // Navigate through the nested structure to load Solace configurations
+    host = configJson["solace"]["solaceLib"]["host"].get<std::string>();
+    vpn = configJson["solace"]["solaceLib"]["vpn"].get<std::string>();
+    username = configJson["solace"]["solaceLib"]["username"].get<std::string>();
+    password = configJson["solace"]["solaceLib"]["password"].get<std::string>();
+    trustStoreDir = configJson["solace"]["solaceLib"]["trustStoreDir"].get<std::string>();
+}
+
+void solaceLib::createSession() {
+    // Define session properties (connection details from loaded config)
+    const char* sessionProps[] = {
+        SOLCLIENT_SESSION_PROP_HOST, host.c_str(),
+        SOLCLIENT_SESSION_PROP_VPN_NAME, vpn.c_str(),
+        SOLCLIENT_SESSION_PROP_USERNAME, username.c_str(),
+        SOLCLIENT_SESSION_PROP_PASSWORD, password.c_str(),
+        SOLCLIENT_SESSION_PROP_SSL_TRUST_STORE_DIR, trustStoreDir.c_str(),
+        SOLCLIENT_SESSION_PROP_CONNECT_BLOCKING, SOLCLIENT_PROP_ENABLE_VAL,
+        NULL
+    };
+
+    // Initialize the context function information
+    solClient_context_createFuncInfo_t contextFuncInfo = SOLCLIENT_CONTEXT_CREATEFUNC_INITIALIZER;
+
+    // Create a context with function info
+    solClient_returnCode_t rc = solClient_context_create(SOLCLIENT_CONTEXT_PROPS_DEFAULT_WITH_CREATE_THREAD, &context, &contextFuncInfo, sizeof(contextFuncInfo));
+
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to create Solace context: " + std::string(solClient_returnCodeToString(rc)));
+    }
+
+    // Set up session callback information
+    solClient_session_createFuncInfo_t sessionFuncInfo = SOLCLIENT_SESSION_CREATEFUNC_INITIALIZER;
+    sessionFuncInfo.rxMsgInfo.callback_p = messageReceiveCallback;
+    sessionFuncInfo.rxMsgInfo.user_p = this;
+    sessionFuncInfo.eventInfo.callback_p = sessionEventCallback;  // This will be corrected to return void
+    sessionFuncInfo.eventInfo.user_p = this;
+
+    // Cast sessionProps to match the expected property array type
+    rc = solClient_session_create((solClient_propertyArray_pt)sessionProps, context, &session, &sessionFuncInfo, sizeof(sessionFuncInfo));
+
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to create Solace session: " + std::string(solClient_returnCodeToString(rc)));
+    }
+
+    // Connect the session
+    rc = solClient_session_connect(session);
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to connect to Solace broker.");
+    }
+}
+
+
+void solaceLib::publishMessage(const std::string& topic, const std::string& message) {
+    // Create a message
+    solClient_opaqueMsg_pt msg;
+    solClient_msg_alloc(&msg);
+    solClient_msg_setDeliveryMode(msg, SOLCLIENT_DELIVERY_MODE_DIRECT);
+    solClient_msg_setBinaryAttachmentString(msg, message.c_str());
+
+    // Set the destination (topic)
+    solClient_destination_t destination;
+    destination.destType = SOLCLIENT_TOPIC_DESTINATION;
+    destination.dest = topic.c_str();
+    solClient_msg_setDestination(msg, &destination, sizeof(destination));
+
+    // Publish the message
+    solClient_returnCode_t rc = solClient_session_sendMsg(session, msg);
+    if (rc != SOLCLIENT_OK) {
+        std::cerr << "Failed to send message." << std::endl;
+    } else {
+        std::cout << "Message sent successfully to topic: " << topic << std::endl;
+    }
+
+    // Cleanup
+    solClient_msg_free(&msg);
+}
+
+void solaceLib::subscribeToTopic(const std::string& topic) {
+    solClient_returnCode_t rc = solClient_session_topicSubscribeExt(session, SOLCLIENT_SUBSCRIBE_FLAGS_WAITFORCONFIRM, topic.c_str());
+    if (rc != SOLCLIENT_OK) {
+        throw std::runtime_error("Failed to subscribe to topic: " + topic);
+    }
+    std::cout << "Subscribed to topic: " << topic << std::endl;
+}
+
+// Callback modification
+solClient_rxMsgCallback_returnCode_t solaceLib::messageReceiveCallback(solClient_opaqueSession_pt session_p, solClient_opaqueMsg_pt msg_p, void* user_p) {
+    void* msgText;
+    solClient_uint32_t msgSize;
+    solClient_msg_getBinaryAttachmentPtr(msg_p, (solClient_opaquePointer_pt)&msgText, &msgSize);
+    std::string message((char*)msgText, msgSize);
+
+    std::cout << "Received message: " << message << std::endl;
+    return SOLCLIENT_CALLBACK_OK;
+}
+
+// Fix: Changed the return type of sessionEventCallback to void
+void solaceLib::sessionEventCallback(solClient_opaqueSession_pt session_p, solClient_session_eventCallbackInfo_pt eventInfo_p, void* user_p) {
+    std::cout << "Received session event: " << solClient_session_eventToString(eventInfo_p->sessionEvent) << std::endl;
+}
+
+================================================
+File: /tests/test_Aggregator.cpp
+================================================
+//
+// Created by Admin on 3/9/2024.
+//
+
+
+================================================
+File: /tests/test_MarketDataGateway.cpp
+================================================
+#include "gtest/gtest.h"
+#include "../include/MarketDataGateway/MarketDataGateway.h"
+#include <fstream>
+#include "../include/json.hpp"
+#include <string>
+using namespace std;
+
+class MarketDataGatewayTest : public ::testing::Test {
+protected:
+    MarketDataGateway mdg;
+};
+
+// Test loading from actual config
+// TEST_F(MarketDataGatewayTest, LoadActualConfig) {
+//     mdg.initialize("../config/config.json");  // Test with actual config file
+//
+//     // Access the baseUrl directly since we're using a friend class
+//     std::string expectedBaseUrl = "https://paper-api.alpaca.markets/";  // Update this if necessary
+//     EXPECT_EQ(mdg.baseUrl, expectedBaseUrl);  // Direct access to private member
+// }
+
+// Test the getMarketData function (mocking the CURL request)
+// TEST_F(MarketDataGatewayTest, getMarketData) {
+//     // Assuming that calling `getMarketData` will at least return something non-empty if successful
+//     std::string result = mdg.getMarketData("AAPL", "IEX");
+//     EXPECT_NE(result, "");  // We assume a valid request returns non-empty data
+// }
+
+
+================================================
+File: /tests/test_OrderGateway.cpp
+================================================
+//
+// Created by Admin on 3/9/2024.
+//
+
+
+================================================
+File: /tests/test_OrderManagementSystem.cpp
+================================================
+//
+// Created by Admin on 3/9/2024.
+//
+
+
+================================================
+File: /tests/test_TradingEngine.cpp
+================================================
+//
+// Created by Admin on 3/9/2024.
+//
+
+
