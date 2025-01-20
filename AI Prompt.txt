@@ -1,0 +1,64 @@
+I am developing a high-frequency trading (HFT) algo trading software in C++, intended to operate within a containerized architecture, with each module independently deployed in Docker containers. I’m building this to support live and historical data processing, order management, real-time strategy execution, and centralized logging. Here are the specifications, design goals, and areas that may require additional guidance. All relevant code is included.
+1. Core Components and Structure
+•	Generic Adapter:
+o	An abstract base class designed to support various adapter implementations.
+o	Each adapter will independently handle market data inflow or order execution (broker communication), or both, with the flexibility to manage different broker APIs.
+o	Each adapter processes and parses data directly within its own scope (parser logic is specific to the adapter, e.g., AlpacaAdapter).
+•	Event Listeners (Market Data & Order Requests):
+o	Two primary event listeners, each running in separate threads but within the same Docker container:
+	Live Event Listener: Listens asynchronously on the marketdata/request/live Solace topic.
+	Historical Event Listener: Processes requests synchronously on the marketdata/request/historical Solace topic.
+o	Both listeners utilize unique thread pools managed independently within the Docker container.
+o	Each listener routes requests via Solace to the appropriate adapter, processes the data according to request type, and sends responses back in JSON format.
+•	Order Management System (OMS):
+o	OMS is responsible for managing orders throughout their lifecycle, from submission to execution, including risk checks.
+o	Orders are standardized using a request.h DTO, with an optional response DTO under consideration.
+o	It uses adapters to route orders based on broker and manages state across all orders, providing lifecycle tracking (Submitted, Partially Filled, Completed, Rejected, etc.).
+o	A static RiskBuilder class is planned for performing configurable risk checks before executing orders.
+o	Orders that fail risk checks are logged but are not retried; error handling here remains under consideration.
+•	Strategy Class:
+o	The Strategy class standardizes how trading strategies are built, enabling them to:
+	Request live data asynchronously and historical data synchronously.
+	Place orders to different brokers through the OMS.
+	Run independently on separate threads, leveraging the ability to share resources.
+o	Strategies will manage their own state but can access shared resources (for cross-strategy signals and portfolio tracking) with the option for a centralized cache solution (like Redis).
+o	Each strategy caches its own data temporarily in Redis and periodically writes to a long-term storage database (e.g., InfluxDB), approximately every 4 hours.
+o	Builder classes, containing pricing algorithms and technical indicators, are directly accessible within strategies to allow rapid integration.
+•	Solace Messaging Layer:
+o	Solace is used to facilitate inter-module communication across Docker containers.
+o	Each Docker container has its own independent Solace session, initialized at startup.
+o	All communications use JSON for consistency, with potential for further serialization formats in the future.
+o	Solace maintains topics for marketdata/request/live, marketdata/request/historical, and specific order topics for the OMS to listen for and process requests.
+2. Logging, Monitoring, and Error Handling
+•	Centralized Logging:
+o	Centralized logging is used for tracking all incoming and outgoing data requests, live streaming data events, order activities, and OMS actions like PnL, risk, and capital usage.
+o	Monitoring all Solace connections and logging connections, activities, and errors through Kubernetes is assumed.
+o	All logs are forwarded to a centralized logging system to maintain a single source of truth.
+•	Error Handling & Failover:
+o	For failed connections or outages, Kubernetes is assumed to manage failover and scaling.
+o	Connection failures in adapters or the Solace session are handled gracefully, ensuring minimal impact on running strategies.
+o	Future consideration for enhanced error handling and failover mechanisms within Solace sessions and adapter connections is open.
+3. Performance & Resource Management
+•	Concurrency & Parallel Processing:
+o	Both historical and live event listeners manage their own thread pools for handling requests.
+o	Strategy threads run in parallel, managed via Kubernetes, which can handle scaling and prioritization requirements.
+o	High priority may be given to strategies requiring low latency or high-frequency data updates, though this is open to further definition.
+•	Cache and Database Integration:
+o	Redis is employed as a real-time, in-memory cache accessible by strategies for rapid access to time-series data (moving averages, rolling indicators, etc.).
+o	Redis serves as a temporary data store before batch updates to InfluxDB every 4 hours.
+o	InfluxDB will store all historical and processed data but currently has no defined schema; design suggestions are welcome for handling high-frequency market data storage.
+4. Outstanding Considerations & Questions
+•	Resource Sharing for Strategies:
+o	Strategies may need to share signals and data, especially when performing internal trade crossing.
+o	Advice on whether to centralize state data in Redis versus individual state caches within each strategy is needed.
+•	Schema & Structure of InfluxDB:
+o	InfluxDB's schema for high-frequency data storage, including handling historical data and calculations, remains undefined.
+•	Risk Management & OMS Handling:
+o	Lifecycle states for orders in the OMS (Submitted, Filled, Rejected, etc.) are under consideration, along with error handling protocols.
+o	The static RiskBuilder class is intended for risk checks, but customizable risk handling may be required.
+•	Performance Optimization & Threading:
+o	Thread pool configurations may be managed by Kubernetes, but optimal settings for high-volume data handling are open for exploration
+
+
+My personal prompt 
+i will explain my current design that i want to achieve and provide the code i have until now. dont only focus on the examples i give, imagine yourself as a solution architect and think of more things i wld require. i am building a hft algo trading software in c++ the code so far is uploaded i have a generic adapter, which is an abstract class to future adapters, which can either handle market data inflow or order execution( broker) or both, and it has been made dynamic enuf for the adapters. i intend to make a market data/order request listener and run this package as its own docker container. i need to run historical and live eventlistners and run them in parallel in sep threads. i also need to make a DTO like order.h as stated in the code to standardise the market request, and have them be attached to all classes that need it (example request.h). parsing of data (marketdataparser) has to be done at the adapter level before being sent. next, i have the order management system (OMS), which has the order specific commands and picks which adapter to use as seen in the code. it uses the order.h DTO to standarise the order format which can be read accross the system. i also need an event listener here, and i need to run this whole package as a seperate docker container too. i will need to do some order lifecycle management, and some basic stats analysis like pnl, currently open trades, risk, etc next is the strategy class. this class is for standardising the format of how strategies are written. so future strategies like for example a pairs trading strategy will be called PTS and they will inherit Strategy class and request for live and historical data, which will be in asynch and synch connections respectively, and be able to send orders to available brokers which is in asynch. now i shld be able to run these strategies that inherit the strartegy class in parellel on seperate threads. each of these strategies will have their own cache (or advise if a central cache is recommended) which will then dump its cache contents into a db (im thinking influxdb) every 4 hrs or so, which i intend to use redis for (the chaching). the strategy class will also have the request.h DTO connected, along with some builder classes full of business logic like pricing algos, technical indicators, which are immeditely available to the strategies. these should also run as a docker package. finally there is the solace layer that connects everything to each other. it is given by the solacelib file, and each docker container will initiate its own session with the running solace server which i will activate, by using the methods in the solace lib as a constructor. i will provide a list of connections to be made by each package in the future. so here is an example flow. PTS requests for historical data. the request is crafted using the request.h DTO format as is heard by the intended event listener thru a topic in solace. it then chooses the appropriate adapter and send the request, recieves the parsed data and sends it back thru solace. this part is synch. then it asks for some live data. the request is sent thru solace and heard by the appropriate listener. it checks if the live data isnt already being published on any topic. if it is, it returns the appropriate topic, if not, it initiates a live websocket connection, as demonstrated in the alpaca adapter code provided, and starts publishing the data thru a newly formed topic, and returns that topic name. this process is asynch. then the strategy uses some of the buikder metods directly provided, then starts sending orders thru solace using request.h and order.h and then the oms starts executing or blocking the orders based on a series of risk criteria. this has to be in low latency and asynchronously. all of these sections shld log what they are doing, so for example the market data package logs the incoming requests, executed or not, the data itself thats coming thru like when it started and ended, all orders and executions times, all decisions made by strategies and running pnl and risk taken and capital used etc 
