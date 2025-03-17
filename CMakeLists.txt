@@ -55,7 +55,11 @@ add_executable(AlphaStrat ${SRC_FILES} ${INCLUDE_FILES}
         src/strategy/Strategy.cpp
         src/strategy/Strategy.h
         active_strats/StatArb1/StatArb1.cpp
-        active_strats/StatArb1/StatArb1.h)
+        active_strats/StatArb1/StatArb1.h
+        src/Adapters/IBKRAdapter.cpp
+        include/Adapters/IBKRAdapter.h
+        include/DTOs/AlphaStratDTOs.h
+        include/DTOs/AlphaStratDTOs.h)
 
 # Link necessary libraries to the main executable
 target_link_libraries(AlphaStrat PRIVATE Boost::boost)

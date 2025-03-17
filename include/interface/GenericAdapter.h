@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include "../include/orderGateway/Order.h"
+#include "../include/DTOs/AlphaStratDTOs.h"
 #include <iostream>
 
 class GenericAdapter {
@@ -37,6 +38,17 @@ public:
     // Historical data retrieval (optional, may not be implemented by all adapters)
     virtual void getHistoricalData(const std::string& symbol, int startTimeDate, int endStartDate) {
         std::cerr << "getHistoricalData() is not supported or not implemented by this adapter." << std::endl;
+    }
+
+    // In include/interface/GenericAdapter.h
+    virtual void publishMarketDataDTO(const MarketDataDTO& dto) {
+        // Default: do nothing or log a warning
+        std::cerr << "[GenericAdapter] publishMarketDataDTO() not implemented.\n";
+    }
+
+    // Similarly, if you want a method for OrderDTO:
+    virtual void publishOrderDTO(const OrderDTO& dto) {
+        std::cerr << "[GenericAdapter] publishOrderDTO() not implemented.\n";
     }
 
     // // Sending orders (optional, may not be implemented by all adapters)

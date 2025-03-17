@@ -1,16 +1,34 @@
+#include "../include/Adapters/AlpacaAdapter.h"
 #include <fstream>
 #include <iostream>
 #include <curl/curl.h>
-#include <vector>
-#include <string>
-#include <boost/asio/ssl/context.hpp>
 #include <thread>
-
-#include "../include/Adapters/AlpacaAdapter.h"
+#include <boost/asio/ssl/context.hpp>
+#include <nlohmann/json.hpp>
 #include "../include/MarketDataGateway/MarketDataParser.h"
 
 using namespace std;
 
+enum class AlpacaMsgType {
+    SUCCESS,
+    SUBSCRIPTION,
+    Q,
+    B,
+    UNKNOWN // fallback
+};
+
+AlpacaMsgType parseAlpacaMsgType(const std::string &typeStr) {
+    if (typeStr == "success")       return AlpacaMsgType::SUCCESS;
+    if (typeStr == "subscription")  return AlpacaMsgType::SUBSCRIPTION;
+    if (typeStr == "q")             return AlpacaMsgType::Q;
+    if (typeStr == "b")             return AlpacaMsgType::B;
+    // add more if needed, e.g. "t"
+    return AlpacaMsgType::UNKNOWN;
+}
+
+////////////////////////////////////////
+// Constructor / Destructor
+////////////////////////////////////////
 AlpacaAdapter::AlpacaAdapter(const std::string& configFile) {
     loadConfig(configFile);
 }
@@ -19,10 +37,13 @@ AlpacaAdapter::~AlpacaAdapter() {
     gracefulDisconnect();  // Ensure graceful shutdown on object destruction
 }
 
+////////////////////////////////////////
+// Cleanup
+////////////////////////////////////////
 void AlpacaAdapter::gracefulDisconnect() {
     try {
         std::lock_guard<std::mutex> guard(mtx);
-        if (con->get_state() == websocketpp::session::state::open) {
+        if (con && con->get_state() == websocketpp::session::state::open) {
             c.close(con->get_handle(), websocketpp::close::status::going_away, "Client disconnect");
         }
         std::cout << "WebSocket connection closed gracefully." << std::endl;
@@ -31,148 +52,14 @@ void AlpacaAdapter::gracefulDisconnect() {
     }
 }
 
+////////////////////////////////////////
+// Initialization
+////////////////////////////////////////
 void AlpacaAdapter::initialize(const std::string& configFile) {
-    // try {
-    //     loadConfig(configFile);
-    //     std::cout << "AlpacaAdapter initialized successfully." << std::endl;
-    // } catch (const std::exception &e) {
-    //     std::cerr << "Error initializing AlpacaAdapter: " << e.what() << std::endl;
-    // }
+    // If needed, re-load config or do other setup
+    // loadConfig(configFile);
+    std::cout << "AlpacaAdapter initialized successfully (no-op)." << std::endl;
 }
-
-string AlpacaAdapter::getLatestTick(const std::string &symbol, const std::string &feed) {
-    try {
-        std::string url = dataUrl + "v2/stocks/quotes/latest?symbols=" + symbol + "&feed=" + feed;
-        std::cout << "Fetching market data for " << symbol << " from: " << url << std::endl;
-        return MarketDataParser::parseQuoteData(performRequest(url));
-    } catch (const std::exception &e) {
-        std::cerr << "Error fetching latest tick: " << e.what() << std::endl;
-        return "";
-    }
-}
-
-static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-    ((std::string*)userp)->append((char*)contents, size * nmemb);
-    return size * nmemb;
-}
-
-void AlpacaAdapter::subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) {
-    // websocket_client c;
-    c.get_alog().clear_channels(websocketpp::log::alevel::frame_header |
-        websocketpp::log::alevel::frame_payload |
-        websocketpp::log::alevel::control);
-
-    std::string url = testMode ? "wss://stream.data.alpaca.markets/v2/test" : "wss://stream.data.alpaca.markets/v2/stocks";
-
-    // Initialize WebSocket connection
-
-
-    try {
-        // websocketpp::lib::error_code ec;
-        // websocket_client::connection_ptr con = c.get_connection(url, ec);
-        try {
-            initializeWebSocketConnection(c, url);
-        } catch (std::exception &e)
-        {
-            std::cerr << "Error initializing websocket connection: " << e.what() << std::endl;
-        }
-
-        // Set message handler to handle incoming messages (only once)
-        c.set_open_handler(std::bind(&AlpacaAdapter::on_open, this, &c, std::placeholders::_1));
-        c.set_message_handler(std::bind(&AlpacaAdapter::on_message, this, &c, std::placeholders::_1, std::placeholders::_2));
-        c.set_close_handler(std::bind(&AlpacaAdapter::on_close, this, &c, std::placeholders::_1));
-        c.set_fail_handler(std::bind(&AlpacaAdapter::on_fail, this, &c, std::placeholders::_1));
-
-        websocketpp::lib::error_code ec;
-        websocket_client::connection_ptr con = c.get_connection(url, ec);
-
-        if (ec) {
-            std::cout << "Connection error: " << ec.message() << std::endl;
-        }
-
-        c.connect(con);
-
-        // WebSocket run in a separate thread
-        std::thread websocket_thread([this]() {
-            try {
-                c.run();
-            } catch (const std::exception &e) {
-                std::cerr << "[THREAD ERROR] WebSocket thread error: " << e.what() << std::endl;
-            }
-        });
-
-        // Main thread waits for WebSocket messages and handles subscription
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            // Sending subscription message
-            send_subscription(&c, con->get_handle());
-        }
-
-        websocket_thread.join();
-
-    } catch (const websocketpp::exception& e) {
-        std::cerr << "WebSocket exception: " << e.what() << std::endl;
-    } catch (const std::exception &e) {
-        std::cerr << "General exception: " << e.what() << std::endl;
-    }
-}
-
-std::string AlpacaAdapter::createOrder(const Order& order) {
-    std::cout << "Alpaca create order called" << std::endl;
-
-    // Build the JSON body for the order
-    nlohmann::json body = {
-        {"symbol", order.getInstrument()},       // Symbol or asset to trade
-        {"qty", std::to_string(order.getQuantity())}, // Quantity (number of shares/contracts)
-        {"side", order.getSide()},               // Buy or sell
-        {"type", order.getOrderType()},          // Order type (market, limit, stop, etc.)
-        {"time_in_force", order.getTimeInForce()} // Time in force (e.g., day, gtc, ioc)
-    };
-
-    // Handle optional fields based on the order type
-    if (order.getOrderType() == "limit" || order.getOrderType() == "stop_limit") {
-        if (order.getLimitPrice()) {
-            body["limit_price"] = std::to_string(order.getLimitPrice().value());
-        }
-    }
-
-    if (order.getOrderType() == "stop" || order.getOrderType() == "stop_limit") {
-        if (order.getStopPrice()) {
-            body["stop_price"] = std::to_string(order.getStopPrice().value());
-        }
-    }
-
-    if (order.getOrderType() == "trailing_stop") {
-        if (order.getTrailPrice()) {
-            body["trail_price"] = std::to_string(order.getTrailPrice().value());
-        }
-        if (order.getTrailPercent()) {
-            body["trail_percent"] = std::to_string(order.getTrailPercent().value());
-        }
-    }
-
-    // Optional extended hours field for limit and day order types
-    if (order.getTimeInForce() == "day" && (order.getOrderType() == "limit" || order.getOrderType() == "stop_limit")) {
-        body["extended_hours"] = order.isExtendedHours();
-    }
-
-    // Optional fields
-    if (!order.getClientOrderID().empty()) {
-        body["client_order_id"] = order.getClientOrderID();
-    }
-
-    if (!order.getOrderClass().empty()) {
-        body["order_class"] = order.getOrderClass();
-    }
-
-    // Print the constructed JSON for debugging
-    std::cout << "" << std::endl;
-    std::cout << "Constructed Alpaca order JSON: " << body.dump(4) << std::endl;
-
-    // Returning the constructed JSON as a string
-    return body.dump();
-}
-
 
 void AlpacaAdapter::loadConfig(const std::string &configFile) {
     try {
@@ -201,7 +88,238 @@ void AlpacaAdapter::loadConfig(const std::string &configFile) {
     }
 }
 
-string AlpacaAdapter::performRequest(const std::string &url) {
+////////////////////////////////////////
+// Live Data Subscription (FIXED)
+////////////////////////////////////////
+void AlpacaAdapter::subscribeLiveData(const std::vector<std::string>& tickers, bool testMode) {
+    // Store the tickers to use them later for subscription
+    subscribedTickers = tickers;
+
+    // Suppress verbose logs
+    c.get_alog().clear_channels(websocketpp::log::alevel::all);
+
+    // Choose correct URL for test or live
+    std::string url = testMode
+        ? "wss://stream.data.alpaca.markets/v2/test"
+        : "wss://stream.data.alpaca.markets/v2/stocks";
+
+    // Initialize WebSocket
+    try {
+        initializeWebSocketConnection(c, url);
+
+        // Set up event handlers
+        c.set_open_handler(std::bind(&AlpacaAdapter::on_open, this, &c, std::placeholders::_1));
+        c.set_message_handler(std::bind(&AlpacaAdapter::on_message, this, &c, std::placeholders::_1, std::placeholders::_2));
+        c.set_close_handler(std::bind(&AlpacaAdapter::on_close, this, &c, std::placeholders::_1));
+        c.set_fail_handler(std::bind(&AlpacaAdapter::on_fail, this, &c, std::placeholders::_1));
+
+        // Create connection
+        websocketpp::lib::error_code ec;
+        con = c.get_connection(url, ec);
+        if (ec) {
+            std::cerr << "[subscribeLiveData] Connection error: " << ec.message() << std::endl;
+            return;
+        }
+
+        // Connect & run in a separate thread, so we don't block
+        c.connect(con);
+
+        // Start the ASIO loop in a background thread
+        std::thread websocket_thread([&]() {
+            try {
+                // This run call will block until the connection is closed
+                c.run();
+            } catch (const std::exception &e) {
+                std::cerr << "[AlpacaAdapter] WebSocket thread error: " << e.what() << std::endl;
+            }
+        });
+
+        // Detach the thread, so your main code continues
+        websocket_thread.detach();
+
+    } catch (const websocketpp::exception& e) {
+        std::cerr << "[subscribeLiveData] WebSocket exception: " << e.what() << std::endl;
+    } catch (const std::exception &e) {
+        std::cerr << "[subscribeLiveData] General exception: " << e.what() << std::endl;
+    }
+}
+
+////////////////////////////////////////
+// WebSocket Event Handlers
+////////////////////////////////////////
+void AlpacaAdapter::on_open(websocket_client* c, connection_hdl hdl) {
+    std::cout << "[AlpacaAdapter] WebSocket connected! Sending auth..." << std::endl;
+    send_auth(c, hdl);
+
+    // Option A: Immediately subscribe after auth request:
+    // (In production, you might wait for a success message from the server before subscribing.)
+    std::cout << "[AlpacaAdapter] Now sending subscription for tickers" << std::endl;
+    send_subscription(c, hdl);
+}
+
+void AlpacaAdapter::on_message(websocket_client* c,
+                               websocketpp::connection_hdl hdl,
+                               websocket_client::message_ptr msg) {
+    std::lock_guard<std::mutex> guard(mtx);
+    std::string payload = msg->get_payload();
+    nlohmann::json arr = nlohmann::json::parse(payload);
+
+    if (!arr.is_array()) return; // Alpaca sends an array of events
+
+    for (auto &entry : arr) {
+        if (!entry.contains("T")) continue;
+
+        std::string rawType = entry["T"].get<std::string>();
+        AlpacaMsgType msgType = parseAlpacaMsgType(rawType);
+
+        switch(msgType) {
+            case AlpacaMsgType::SUCCESS:
+            {
+                // For "T":"success" or "T":"authenticated" messages,
+                // you might build a logging DTO or just log it.
+                // Example:
+                std::string msgText = entry.value("msg", "");
+                // Publish or log as needed
+                break;
+            }
+
+            case AlpacaMsgType::SUBSCRIPTION:
+            {
+                // "T":"subscription" => subscription confirmation
+                // e.g. build a logging dto
+                std::string msgText = entry.value("msg", "");
+                break;
+            }
+
+            case AlpacaMsgType::Q:
+            {
+                // "T":"q" => quotes
+                MarketDataDTO dto;
+                dto.symbol    = entry.value("S", "");
+                dto.price     = entry.value("ap", 0.0); // askPrice
+                dto.size      = entry.value("as", 0.0); // askSize
+                dto.feed      = "Alpaca";
+                // etc. for bp, bs if you like
+                // publish or handle dto
+                break;
+            }
+
+            case AlpacaMsgType::B:
+            {
+                // "T":"b" => bars
+                MarketDataDTO dto;
+                dto.symbol    = entry.value("S", "");
+                dto.price     = entry.value("c", 0.0);  // close price
+                dto.size      = entry.value("v", 0.0);  // volume
+                dto.feed      = "AlpacaBars";
+                // publish or handle dto
+                break;
+            }
+
+            default:
+            {
+                // Unknown or unhandled
+                break;
+            }
+        } // end switch
+    }
+}
+
+void AlpacaAdapter::on_close(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::cout << "[AlpacaAdapter] Connection closed!" << std::endl;
+}
+
+void AlpacaAdapter::on_fail(websocket_client* c, websocketpp::connection_hdl hdl) {
+    std::cout << "[AlpacaAdapter] Connection failed!" << std::endl;
+}
+
+////////////////////////////////////////
+// Helper: Build WebSocket Connection
+////////////////////////////////////////
+void AlpacaAdapter::initializeWebSocketConnection(websocket_client &client, const std::string &url) {
+    client.init_asio();
+
+    // TLS setup if needed
+    client.set_tls_init_handler([](websocketpp::connection_hdl) {
+        auto ctx = websocketpp::lib::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::sslv23);
+        ctx->set_default_verify_paths();
+        return ctx;
+    });
+}
+
+////////////////////////////////////////
+// Send Auth
+////////////////////////////////////////
+void AlpacaAdapter::send_auth(websocket_client* c, connection_hdl hdl) {
+    // Build JSON or do the old string approach
+    nlohmann::json auth_msg = {
+        {"action", "auth"},
+        {"key",    apiKey},
+        {"secret", secretKey}
+    };
+    sendMessage(c, hdl, auth_msg);
+    std::cout << "> Auth message: " << auth_msg.dump() << std::endl;
+}
+
+////////////////////////////////////////
+// Send Subscription (Only Once!)
+////////////////////////////////////////
+void AlpacaAdapter::send_subscription(websocket_client* c, connection_hdl hdl) {
+    // Build a single subscription message using the vector of tickers
+    // std::string sub_msg = buildSubscriptionMessage(subscribedTickers);
+    // Or if you really want to test "FAKEPACA" only, replace with your own logic
+    std::string sub_msg = R"({"action":"subscribe","bars":["FAKEPACA"],"quotes":["FAKEPACA"]})";
+
+    nlohmann::json j = nlohmann::json::parse(sub_msg);
+    sendMessage(c, hdl, j);
+
+    std::cout << "> Subscription message: " << sub_msg << std::endl;
+}
+
+////////////////////////////////////////
+// Low-level WebSocket Send
+////////////////////////////////////////
+void AlpacaAdapter::sendMessage(websocket_client* c, connection_hdl hdl, const nlohmann::json &message) {
+    try {
+        std::string payload = message.dump();
+        c->send(hdl, payload, websocketpp::frame::opcode::text);
+    } catch (const std::exception &e) {
+        std::cerr << "[AlpacaAdapter] Error sending WebSocket message: " << e.what() << std::endl;
+    }
+}
+
+////////////////////////////////////////
+// Build the Auth/Subscription Messages
+////////////////////////////////////////
+std::string AlpacaAdapter::buildAuthMessage() {
+    nlohmann::json auth_message = {
+        {"action", "auth"},
+        {"key",    apiKey},
+        {"secret", secretKey}
+    };
+    return auth_message.dump();
+}
+
+std::string AlpacaAdapter::buildSubscriptionMessage(const std::vector<std::string>& tickers) {
+    // Example: subscribe to bars & quotes for each ticker
+    nlohmann::json subscribe_message = {
+        {"action", "subscribe"},
+        {"bars",   tickers},
+        {"quotes", tickers}
+        // If you want trades too:  {"trades", tickers}
+    };
+    return subscribe_message.dump();
+}
+
+////////////////////////////////////////
+// HTTP GET for Single Tick
+////////////////////////////////////////
+static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
+
+std::string AlpacaAdapter::performRequest(const std::string &url) {
     try {
         CURL* hnd = curl_easy_init();
         if (!hnd) {
@@ -215,15 +333,13 @@ string AlpacaAdapter::performRequest(const std::string &url) {
 
         struct curl_slist* headers = nullptr;
         headers = curl_slist_append(headers, "accept: application/json");
-        std::string apiKeyHeader = "APCA-API-KEY-ID: " + apiKey;
-        headers = curl_slist_append(headers, apiKeyHeader.c_str());
+        std::string apiKeyHeader    = "APCA-API-KEY-ID: " + apiKey;
         std::string apiSecretHeader = "APCA-API-SECRET-KEY: " + secretKey;
+        headers = curl_slist_append(headers, apiKeyHeader.c_str());
         headers = curl_slist_append(headers, apiSecretHeader.c_str());
-
         curl_easy_setopt(hnd, CURLOPT_HTTPHEADER, headers);
 
         CURLcode res = curl_easy_perform(hnd);
-
         if (res != CURLE_OK) {
             throw std::runtime_error(curl_easy_strerror(res));
         }
@@ -232,83 +348,40 @@ string AlpacaAdapter::performRequest(const std::string &url) {
         curl_easy_cleanup(hnd);
 
         return readBuffer;
-
     } catch (const std::exception &e) {
-        std::cerr << "Error performing request: " << e.what() << std::endl;
+        std::cerr << "[AlpacaAdapter] Error performing request: " << e.what() << std::endl;
         return "";
     }
 }
 
-void AlpacaAdapter::on_message(websocket_client* c, websocketpp::connection_hdl hdl, websocket_client::message_ptr msg) {
-    std::lock_guard<std::mutex> guard(mtx);
-    std::cout << "< Received message: " << msg->get_payload() << std::endl;
-    std::cout << "" << std::endl;
-}
-
-void AlpacaAdapter::on_open(websocket_client* c, websocketpp::connection_hdl hdl) {
-    std::cout << "Connected to WebSocket server!" << std::endl;
-    AlpacaAdapter::send_auth(c, hdl);
-}
-
-void AlpacaAdapter::on_close(websocket_client* c, websocketpp::connection_hdl hdl) {
-    std::cout << "Connection closed!" << std::endl;
-}
-
-void AlpacaAdapter::on_fail(websocket_client* c, websocketpp::connection_hdl hdl) {
-    std::cout << "Connection failed!" << std::endl;
-}
-
-void AlpacaAdapter::sendMessage(websocket_client* c, connection_hdl hdl, const nlohmann::json& message) {
+////////////////////////////////////////
+// getLatestTick
+////////////////////////////////////////
+std::string AlpacaAdapter::getLatestTick(const std::string &symbol, const std::string &feed) {
     try {
-        std::string payload = message.dump();
-        c->send(hdl, payload, websocketpp::frame::opcode::text);
+        std::string url = dataUrl + "v2/stocks/quotes/latest?symbols=" + symbol + "&feed=" + feed;
+        std::cout << "Fetching market data for " << symbol << " from: " << url << std::endl;
+        return MarketDataParser::parseQuoteData(performRequest(url));
     } catch (const std::exception &e) {
-        std::cerr << "Error sending WebSocket message: " << e.what() << std::endl;
+        std::cerr << "[AlpacaAdapter] Error fetching latest tick: " << e.what() << std::endl;
+        return "";
     }
 }
 
-void AlpacaAdapter::send_auth(websocket_client* c, websocketpp::connection_hdl hdl) {
-    std::string auth_msg = R"({"action":"auth","key":")" + apiKey + R"(","secret":")" + secretKey + R"("})";
-    c->send(hdl, auth_msg, websocketpp::frame::opcode::text);
-    // std::cout << "> Auth message: " << auth_msg << std::endl;
-}
-
-void AlpacaAdapter::send_subscription(websocket_client* c, websocketpp::connection_hdl hdl) {
-    std::string sub_msg = R"({"action":"subscribe","bars":["FAKEPACA"],"quotes":["FAKEPACA"]})";
-    c->send(hdl, sub_msg, websocketpp::frame::opcode::text);
-    std::cout << "> Subscription message: " << sub_msg << std::endl;
-}
-
-std::string AlpacaAdapter::buildAuthMessage() {
-    nlohmann::json auth_message = {
-        {"action", "auth"},
-        {"key", apiKey},
-        {"secret", secretKey}
+////////////////////////////////////////
+// createOrder (HTTP POST or Just JSON)
+////////////////////////////////////////
+std::string AlpacaAdapter::createOrder(const Order& order) {
+    // Build JSON for the order
+    nlohmann::json body = {
+        {"symbol",         order.getInstrument()},
+        {"qty",            std::to_string(order.getQuantity())},
+        {"side",           order.getSide()},
+        {"type",           order.getOrderType()},
+        {"time_in_force",  order.getTimeInForce()}
     };
-    return auth_message.dump();
-}
-
-std::string AlpacaAdapter::buildSubscriptionMessage(const std::vector<std::string>& tickers) {
-    nlohmann::json subscribe_message = {
-        {"action", "subscribe"},
-        {"bars", tickers},  // Subscribe to bars
-        {"quotes", tickers}   // Optionally subscribe to quotes too
-    };
-    return subscribe_message.dump();
-}
-
-void AlpacaAdapter::initializeWebSocketConnection(websocket_client& c, const std::string& url) {
-    c.init_asio();
-
-    // Set TLS initialization callback
-    c.set_tls_init_handler([](websocketpp::connection_hdl) -> websocketpp::lib::shared_ptr<boost::asio::ssl::context> {
-        try {
-            auto ctx = websocketpp::lib::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::sslv23);
-            ctx->set_default_verify_paths();
-            return ctx;
-        } catch (const std::exception &e) {
-            std::cerr << "TLS initialization error: " << e.what() << std::endl;
-            return nullptr;  // Return null on error
-        }
-    });
+    // ... handle limit_price, stop_price, trailing, extended_hours, etc. ...
+    // Return the JSON for now:
+    std::cout << "[AlpacaAdapter] createOrder JSON: " << body.dump(4) << std::endl;
+    return body.dump();
 }

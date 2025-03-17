@@ -30,55 +30,76 @@ void signalHandler(int signal) {
     exit(signal);
 }
 
-// Function to run an adapter and subscribe to live data
-void runAdapter(const std::string& configFile, const std::vector<std::string>& tickers, bool testMode) {
-    AlpacaAdapter adapter(configFile);
-    adapter.subscribeLiveData(tickers, testMode);
+// Example function to run Alpaca in a dedicated thread
+void runAlpaca(std::shared_ptr<AlpacaAdapter> alpacaPtr,
+               const std::vector<std::string>& tickers,
+               bool testMode)
+{
+    // Subscribe to live data
+    alpacaPtr->subscribeLiveData(tickers, testMode);
+
+    // Keep this thread alive so the adapter isn't destroyed
+    while(true) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
 }
 
+// // Example function to run IBKR in a dedicated thread
+// void runIBKR(std::shared_ptr<IBKRAdapter> ibkrPtr,
+//              const std::vector<std::string>& tickers)
+// {
+//     // Typically you'd connect to TWS or IB Gateway, e.g.:
+//     // ibkrPtr->initialize(...);
+//     ibkrPtr->subscribeLiveData(tickers, false /* testMode not relevant for IBKR */);
+//
+//     // Keep this thread alive
+//     while(true) {
+//         std::this_thread::sleep_for(std::chrono::seconds(1));
+//     }
+// }
 int main() {
 
-    try {
-        // Create EventListener objects
-        EventListener liveEventListener("../config/topics.json", EventListener::Type::Live);
-        EventListener historicalEventListener("../config/topics.json", EventListener::Type::Historical);
-        EventListener orderEventListener("../config/topics.json", EventListener::Type::Order);
-
-        // Start listening
-        liveEventListener.startListening();
-        historicalEventListener.startListening();
-        orderEventListener.startListening();
-
-        solaceLib solaceClient("../config/config.json");
-
-        // Loop to continuously publish messages to the subscribed topics
-        int messageCount = 0;
-        while (messageCount < 100) {
-            // Create test messages
-            std::string testLiveMessage = "{\"event\": \"live_data\", \"message\": \"Live data sample " + std::to_string(messageCount) + "\"}";
-            std::string testHistoricalMessage = "{\"event\": \"historical_data\", \"message\": \"Historical data sample " + std::to_string(messageCount) + "\"}";
-            std::string testOrderMessage = "{\"event\": \"order_request\", \"message\": \"Order request sample " + std::to_string(messageCount) + "\"}";
-
-            // Publish the messages
-            solaceClient.publishMessage("marketdata/request/live", testLiveMessage);
-            solaceClient.publishMessage("marketdata/request/historical", testHistoricalMessage);
-            solaceClient.publishMessage("order/request", testOrderMessage);
-
-            // std::cout << "Published messages with count: " << messageCount << std::endl;
-
-            // Wait for a short period before sending the next set of messages
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            messageCount++;
-        }
-
-        // Keep the program running to receive messages (subscriber)
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::seconds(10));
-        }
-
-    } catch (const std::exception& e) {
-        std::cerr << "Exception occurred: " << e.what() << std::endl;
-    }
+    // try {
+    //     // Create EventListener objects
+    //     EventListener liveEventListener("../config/topics.json", EventListener::Type::Live);
+    //     EventListener historicalEventListener("../config/topics.json", EventListener::Type::Historical);
+    //     EventListener orderEventListener("../config/topics.json", EventListener::Type::Order);
+    //
+    //     // Start listening
+    //     liveEventListener.startListening();
+    //     historicalEventListener.startListening();
+    //     orderEventListener.startListening();
+    //
+    //     solaceLib solaceClient("../config/config.json");
+    //
+    //     // Loop to continuously publish messages to the subscribed topics
+    //     int messageCount = 0;
+    //     while (messageCount < 100) {
+    //         // Create test messages
+    //         std::string testLiveMessage = "{\"event\": \"live_data\", \"message\": \"Live data sample " + std::to_string(messageCount) + "\"}";
+    //         std::string testHistoricalMessage = "{\"event\": \"historical_data\", \"message\": \"Historical data sample " + std::to_string(messageCount) + "\"}";
+    //         std::string testOrderMessage = "{\"event\": \"order_request\", \"message\": \"Order request sample " + std::to_string(messageCount) + "\"}";
+    //
+    //         // Publish the messages
+    //         solaceClient.publishMessage("marketdata/request/live", testLiveMessage);
+    //         solaceClient.publishMessage("marketdata/request/historical", testHistoricalMessage);
+    //         solaceClient.publishMessage("order/request", testOrderMessage);
+    //
+    //         // std::cout << "Published messages with count: " << messageCount << std::endl;
+    //
+    //         // Wait for a short period before sending the next set of messages
+    //         std::this_thread::sleep_for(std::chrono::seconds(1));
+    //         messageCount++;
+    //     }
+    //
+    //     // Keep the program running to receive messages (subscriber)
+    //     while (true) {
+    //         std::this_thread::sleep_for(std::chrono::seconds(10));
+    //     }
+    //
+    // } catch (const std::exception& e) {
+    //     std::cerr << "Exception occurred: " << e.what() << std::endl;
+    // }
 
     // OrderManagementSystem oms;
     // oms.initializeAdapters();
@@ -181,9 +202,9 @@ If any exception occurs during execution, it is caught, and the error is printed
     //(alpaca only allows one subscription (free), this will be used for other adapters)
 */
 
-    // // Register signal handler
-    // signal(SIGINT, signalHandler);
-    // signal(SIGTERM, signalHandler);
+    // Register signal handler
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
 
     // // Example for running multiples threads
     // std::vector<std::string> configFiles = {
@@ -221,14 +242,44 @@ If any exception occurs during execution, it is caught, and the error is printed
     //         th.join();
     //     }
     // }
-
+    //
     // AlpacaAdapter alpaca_adapter("../config/config.json");
-    // alpaca_adapter.initialize("../config/config.json");
-    // //
+    // // alpaca_adapter.initialize("../config/config.json");
+    //
     // string response2 = alpaca_adapter.getLatestTick("tsla", "iex") ;
     // //
     // cout << "" << endl;
     // cout << response2 << endl;
+    //
+    // while(true) {
+    //     std::this_thread::sleep_for(std::chrono::seconds(1));
+    // }
+
+    // Create shared pointers so they don't go out of scope
+    auto alpacaAdapter = std::make_shared<AlpacaAdapter>("../config/config.json");
+    // auto ibkrAdapter   = std::make_shared<IBKRAdapter>("../config/ibkr_config.json");
+
+    // Ticker sets for each
+    std::vector<std::string> alpacaTickers = {"AAPL", "TSLA"};
+    std::vector<std::string> ibkrTickers   = {"AMZN", "MSFT"};
+
+    // Start threads
+    std::thread alpacaThread(runAlpaca, alpacaAdapter, alpacaTickers, /*testMode*/true);
+    // std::thread ibkrThread(runIBKR, ibkrAdapter, ibkrTickers);
+
+    // Option A: Join them to block main forever
+    // alpacaThread.join();
+    // ibkrThread.join();
+
+    // Option B: Detach them if you just want them to run in background
+    alpacaThread.detach();
+    // ibkrThread.detach();
+
+    // Keep main alive indefinitely
+    while(true) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::cout << "[main] Still running...\n";
+    }
 
     return 0;
 }

@@ -54,6 +54,8 @@ private:
 
     //Single json request
     std::string performRequest(const std::string& url);
+    // Track our tickers so we can build the subscription message once
+    std::vector<std::string> subscribedTickers;
 
     // Websocket live data
     websocket_client c;
