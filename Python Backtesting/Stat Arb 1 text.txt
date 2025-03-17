@@ -1,0 +1,127 @@
+
+
+Statistical Arbitrage on Nq1! Es1!
+
+Connect this to the C++ infra ASAP
+
+    # !pip install Alpaca-py
+
+    import os
+    import json
+    import pandas as pd
+    from alpaca.data.historical import StockHistoricalDataClient
+    from alpaca.data.requests import StockBarsRequest
+    from alpaca.data.timeframe import TimeFrame
+    from datetime import datetime
+    import signal
+    import sys
+
+    # Alpaca keys (Edit ../config/config.json)(MAKE SURE THIS JSON IS UNTRACKED IN GITHUB, DO NOT COMMIT KEYS)
+
+    # Load config
+    CONFIG_PATH = "../config/config.json"
+    with open(CONFIG_PATH, "r") as file:
+        config = json.load(file)
+
+    ALPACA_API_KEY = config["marketAdapter"]["alpacaAdapter"]["api_key"]
+    ALPACA_API_SECRET = config["marketAdapter"]["alpacaAdapter"]["api_secret"]
+
+    # Initialize Alpaca Historical Data Client
+    client = StockHistoricalDataClient(ALPACA_API_KEY, ALPACA_API_SECRET)
+
+    # Trade log
+    trade_log = []
+
+    def fetch_data(symbol: str, start_date: str, end_date: str):
+        """Fetch historical data for the given symbol."""
+        request_params = StockBarsRequest(
+            symbol_or_symbols=symbol,
+            timeframe=TimeFrame.Day,
+            start=start_date,
+            end=end_date
+        )
+        bars = client.get_stock_bars(request_params)
+        df = bars.df.reset_index()
+        df = df[df['symbol'] == symbol]  # Ensure single symbol data
+        return df
+
+
+
+    def execute_trades(data):
+        """Simulate trade execution and log trades."""
+        global trade_log
+        for i in range(1, len(data)):
+            if data['Signal'].iloc[i] != data['Signal'].iloc[i - 1]:
+                action = "BUY" if data['Signal'].iloc[i] == 1 else "SELL"
+                trade_log.append({
+                    'Date': data['timestamp'].iloc[i],
+                    'Action': action,
+                    'Price': data['close'].iloc[i]
+                })
+
+    def save_to_csv(file_name="trade_log.csv"):
+        """Save trades to a CSV file."""
+        global trade_log
+        if trade_log:
+            df = pd.DataFrame(trade_log)
+            df.to_csv(file_name, index=False)
+            print(f"Trade log saved to {file_name}.")
+
+    # Graceful exit handling
+    def signal_handler(sig, frame):
+        print("\nExecution interrupted. Saving trades...")
+        save_to_csv()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+
+    <function _signal.default_int_handler>
+
+Strategy testing
+
+    def strategy(data):
+        """Simple Moving Average Crossover Strategy."""
+        data['SMA_10'] = data['close'].rolling(window=10).mean()
+        data['SMA_30'] = data['close'].rolling(window=30).mean()
+        data['Signal'] = 0
+        data.loc[data['SMA_10'] > data['SMA_30'], 'Signal'] = 1  # Buy
+        data.loc[data['SMA_10'] <= data['SMA_30'], 'Signal'] = -1  # Sell
+        return data
+
+Main execution
+
+Downloads trade log to csv after kernal is interupted
+
+    # Main execution
+    if __name__ == "__main__":
+        
+        symbol = "AAPL"
+        start_date = "2023-01-01"
+        end_date = "2023-12-31"
+
+        print("Fetching data...")
+        data = fetch_data(symbol, start_date, end_date)
+
+        print("Applying strategy...")
+        data = strategy(data)
+
+        print("Executing trades...")
+        execute_trades(data)
+
+        print("Trades executed. Waiting for interruption to save...")
+        while True:
+            pass
+
+    Fetching data...
+    Applying strategy...
+    Executing trades...
+    Trades executed. Waiting for interruption to save...
+
+    ---------------------------------------------------------------------------
+    KeyboardInterrupt                         Traceback (most recent call last)
+    <ipython-input-17-90c4ccd1895b> in <module>
+         17     print("Trades executed. Waiting for interruption to save...")
+         18     while True:
+    ---> 19         pass
+
+    KeyboardInterrupt: 
