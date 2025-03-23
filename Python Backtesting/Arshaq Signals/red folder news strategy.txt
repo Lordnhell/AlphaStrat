@@ -1,0 +1,37 @@
+red folder news strategy
+
+steps - 
+1 - 
+DETERMINE DAILY BIAS 
+- go to daily candle 
+- get trend 
+- point out trend low or high
+- point out fair value gaps
+- point out liq pools
+- get previous session lows and highs
+- determine if asia highs and lows are taken out in London session
+
+ON RED FOLDER NEWS DAY do this on 15 mins chart  
+- mark out liq pools from previous sessions
+- wait for huge candle to form (green or red)
+- wait till new York session
+- confirm if price was in the liq pool range as identified earlier (this initiates sell side liq pool move bias)
+- mark out following fair value gaps occurring just outside of liq pool hit
+- wait for FVGs to be filled
+- prompt after 3 candles of fill (depending on candle timeframe) ONLY DURING NEW YORK SESSION
+
+EXIT (not to be implemented currently
+- target based approach
+- targets 1 : liq pools marked out from prev sessions
+- 
+
+
+qns - 
+
+
+indicators - 
+make fair value gap indicator
+make liq pool indicator
+
+
+
